@@ -40,7 +40,7 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 #### methods from this gem
 
 1. hgid(tag: nil) - get the hgid with optional tag. Aliased to ghid
-2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end
+2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end (especially over cable-ready and morphdom operations)
 3. self.locate_hgid(hgid_string, with_associations: nil, returns_nil: false) - locates the database record from a hgid. Here are some examples of usage:
     - ApplicationRecord.locate_hgid(hgid) - <b>DANGEROUS</b> will return any object referenced by the hgid.
     - User.locate_hgid(hgid) - locates the User record but only if the hgid references a user class. Fires an error if not.
