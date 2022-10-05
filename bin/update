@@ -10,10 +10,12 @@
 #puts x.class
 #puts x.length
 #puts x
+
 project = 'dynamic-records-meritfront'			#<---change on a per project basis
 
 puts "_______________________________________________"
-require_relative "../lib/#{project}/version.rb"
+
+require_relative "../lib/#{project}/version"
 
 clz = DynamicRecordsMeritfront				#<---change on a per project basis
 
@@ -30,12 +32,12 @@ write_to = "#{File.dirname(__FILE__)}/../lib/#{project}/version.rb"
 puts "updating #{write_to} to new version #{version_new}"
 
 
-File.write(write_to, %Q{
-module clz
-    VERSION = "#{version_new}"
-end
-#this file gets overwritten automatically on minor updates, major ones need to be manually changed
-})
+File.write(write_to, "
+	module #{clz}
+	    VERSION = '#{version_new}'
+	end
+	#this file gets overwritten automatically on minor updates, major ones need to be manually changed
+")
 
 puts "_______________________________________________"
 puts "BUNDLE UPDATE"
