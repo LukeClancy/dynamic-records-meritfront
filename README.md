@@ -24,6 +24,15 @@ Or install it yourself as:
 
 ## Usage
 
+### Apply to your ApplicationRecord class as such
+
+```ruby
+class ApplicationRecord < ActiveRecord::Base
+	self.abstract_class = true
+	include DynamicRecordsMeritfront
+end
+```
+
 ### Hashed Global IDS
 
 hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
