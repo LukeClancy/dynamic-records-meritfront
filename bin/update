@@ -1,0 +1,53 @@
+#!/bin/env ruby
+#this is for local development and should not be for actual updates,
+#   I just got annoyed with the number of things you had to do to get the updated
+#   version on your machine. Even after this you have to update the and restart your website...
+#   you can one-line that with './bin/bundle update && ../bin rails s' though. Just
+#   make sure you use ~> in the gemfile and your first 2 version numbers are correct.
+
+#x = File.read('./#{project}.gemspec')
+#x = x.split("\n")
+#puts x.class
+#puts x.length
+#puts x
+project = 'dynamic-records-meritfront'			#<---change on a per project basis
+
+puts "_______________________________________________"
+require_relative "../lib/#{project}/version.rb"
+
+clz = DynamicRecordsMeritfront				#<---change on a per project basis
+
+old_version = clz::VERSION
+version = old_version.split('.')
+version[-1] = ((version[-1].to_i) + 1).to_s
+version_new = version.join('.')
+
+puts File.dirname(__FILE__)
+puts "old version: #{old_version}"
+
+write_to = "#{File.dirname(__FILE__)}/../lib/#{project}/version.rb"
+
+puts "updating #{write_to} to new version #{version_new}"
+
+
+File.write(write_to, %Q{
+module clz
+    VERSION = "#{version_new}"
+end
+#this file gets overwritten automatically on minor updates, major ones need to be manually changed
+})
+
+puts "_______________________________________________"
+puts "BUNDLE UPDATE"
+puts `bundle update`
+puts "_______________________________________________"
+puts "GIT ADD"
+puts `git add *`
+puts "_______________________________________________"
+puts "GIT COMMIT"
+puts `git commit -m 'minor changes to version #{version_new}'`
+puts "_______________________________________________"
+puts "INSTALL GEM LOCALLY"
+puts `bundle exec rake install`
+puts "_______________________________________________"
+puts "info: write 'bundle exec rake release' to release the current version to the interwebz"
