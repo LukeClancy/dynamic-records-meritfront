@@ -1,6 +1,6 @@
-# ActiveRecordMeritfront
+# Dynamic Records Meritfront
 
-Active Record Meritfront contains some helpers methods for active record. These methods have the goal of allowing one to
+Dyanmic Records Meritfront contains some helpers methods for active record. These methods have the goal of allowing one to
 1. communicate with the frontend quicker and more effectively through Global HashIds
 2. communicate with the backend more effectively with raw sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have a page-long dynamic sql query.
 
