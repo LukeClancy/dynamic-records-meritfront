@@ -47,7 +47,7 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
     - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
     - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
 4. get_hgid_tag(hgid) - returns the tag attached to the hgid
-5. self.blind_hgid(id, tag) - creates 
+5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
 
 ### SQL methods
 
