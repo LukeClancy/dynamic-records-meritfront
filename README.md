@@ -140,7 +140,20 @@ This is an example of why this method is good for dynamic prepared statements.
 </details>
 
 #### self.headache_preload(records, associations)
-Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method.
+Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation).
+
+<details>
+<summary>example usage</summary>
+Preload :votes on some comments. :votes is an active record has_many relation.
+
+```ruby
+    comments = Comment.headache_sql('get_comments', %Q{
+        SELECT * FROM comments LIMIT 4
+    })
+    ApplicationRecord.headache_preload(comments, [:votes])
+    puts comments[0].votes #this line should be preloaded and hence not call the database
+```
+</details>
 
 ## Contributing
 
