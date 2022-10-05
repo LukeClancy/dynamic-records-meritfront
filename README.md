@@ -11,7 +11,7 @@ I dont tend to get much feedback, so any given would be appreciated.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'active_record_meritfront'
+gem 'dynamic-records-meritfront'
 ```
 
 And then execute:
@@ -20,7 +20,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install active_record_meritfront
+    $ gem install dynamic-records-meritfront
 
 ## Usage
 
@@ -144,7 +144,7 @@ Preloads from a list of records, and not from a ActiveRecord_Relation. This will
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/active_record_meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/active_record_meritfront/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/active_record_meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -152,4 +152,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the ActiveRecordMeritfront project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/active_record_meritfront/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the ActiveRecordMeritfront project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
