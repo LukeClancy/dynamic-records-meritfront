@@ -164,6 +164,12 @@ Preload :votes on some comments. :votes is an active record has_many relation.
 ```
 </details>
 
+## Potential Issues
+
+This gem was made with a postgresql database. Although most of the headache_sql code <i>should</i> be usable between databases, there is no abstracted ActiveRecord array type, and no similar classes to ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array for non-postgresql databases (at least, none I could find). I am not 100% sure that it will be an issue, but it might be.
+
+Let me know if this actually becomes an issue for someone and I will throw in a workaround.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/LukeClancy/dynamic-records-meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
