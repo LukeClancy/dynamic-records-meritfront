@@ -11,7 +11,7 @@ I dont tend to get much feedback, so any given would be appreciated.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'active_record_meritfront'
+gem 'dynamic-records-meritfront'
 ```
 
 And then execute:
@@ -20,9 +20,18 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install active_record_meritfront
+    $ gem install dynamic-records-meritfront
 
 ## Usage
+
+### Apply to your ApplicationRecord class as such
+
+```ruby
+class ApplicationRecord < ActiveRecord::Base
+	self.abstract_class = true
+	include DynamicRecordsMeritfront
+end
+```
 
 ### Hashed Global IDS
 
@@ -40,14 +49,14 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 #### methods from this gem
 
 1. hgid(tag: nil) - get the hgid with optional tag. Aliased to ghid
-2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end
+2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end (especially over cable-ready and morphdom operations)
 3. self.locate_hgid(hgid_string, with_associations: nil, returns_nil: false) - locates the database record from a hgid. Here are some examples of usage:
     - ApplicationRecord.locate_hgid(hgid) - <b>DANGEROUS</b> will return any object referenced by the hgid.
     - User.locate_hgid(hgid) - locates the User record but only if the hgid references a user class. Fires an error if not.
     - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
     - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
 4. get_hgid_tag(hgid) - returns the tag attached to the hgid
-5. self.blind_hgid(id, tag) - creates 
+5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
 
 ### SQL methods
 
@@ -101,7 +110,7 @@ with options:
 - name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options (except name_modifiers). Not sure how it effects prepared statements.
-- async: does what it says but I haven't used it yet so. Probabably doesn't work
+- async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
 - other options: considered sql arguments
 
 <details>
@@ -118,7 +127,7 @@ Delete Friend Requests between two users after they have become friends.
 </details>
 
 <details>
-<summary>advanced example usage</summary>
+<summary>dynamic sql example usage</summary>
 Get all users who have made a friend request to a particular user with an optional limit.
 This is an example of why this method is good for dynamic prepared statements.
 
@@ -138,13 +147,81 @@ This is an example of why this method is good for dynamic prepared statements.
     ])
 ```
 </details>
+<details>
+<summary>example usage with selecting records that match list of ids</summary>
+Get users who match a list of ids. Uses a postgresql Array, see the potential issues section
+
+```ruby
+	id_list = [1,2,3]
+	return User.headache_sql('get_usrs', %Q{
+		SELECT * FROM users WHERE id = ANY (:id_list)
+	}, id_list: id_list)
+```
+</details>
+	
+<details>
+<summary>example usage a custom upsert</summary>
+Do an upsert
+
+```ruby
+	rows = uzrs.map{|u| [
+		u.id,		#user_id
+		self.id,	#conversation_id
+		from,		#invited_by
+		t,		#created_at
+		t,		#updated_at
+	]}
+	ApplicationRecord.headache_sql("upsert_conversation_invites_2", %Q{
+		INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
+		VALUES :rows
+		ON CONFLICT (conversation_id,user_id)
+		DO UPDATE SET updated_at = :time
+	}, rows: rows, time: t)
+```
+This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as headache_sql detected that we were sending duplicate information.
+```sql
+	INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
+	VALUES ($1,$2,$3,$4,$4)
+	ON CONFLICT (conversation_id,user_id)
+	DO UPDATE SET updated_at = $4
+	-- [["rows_1", 15], ["rows_2", 67], ["rows_3", 6], ["rows_4", "2022-10-13 20:49:27.441372"]]
+```
+</details>
+	
+	
 
 #### self.headache_preload(records, associations)
-Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method.
+Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation).
 
+<details>
+<summary>example usage</summary>
+Preload :votes on some comments. :votes is an active record has_many relation.
+
+```ruby
+    comments = Comment.headache_sql('get_comments', %Q{
+        SELECT * FROM comments LIMIT 4
+    })
+    ApplicationRecord.headache_preload(comments, [:votes])
+    puts comments[0].votes #this line should be preloaded and hence not call the database
+```
+</details>
+
+## Potential Issues
+
+This gem was made with a postgresql database. Although most of the headache_sql code <i>should</i> be usable between databases, there is no abstracted ActiveRecord array type, and no similar classes to ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array for non-postgresql databases (at least, none I could find). I am not 100% sure that it will be an issue, but it might be.
+
+Let me know if this actually becomes an issue for someone and I will throw in a workaround.
+
+## Changelog
+	
+1.1.10
+- Added functionality in headache_sql where for sql arguments that are equal, we only use one sql argument instead of repeating arguments
+- Added functionality in headache_sql for 'multi row expressions' which are inputtable as an Array of Arrays. See the upsert example in the headache_sql documentation above for more.
+- Added a warning in the README for non-postgresql databases. Contact me if you hit issues and we can work it out.
+	
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/active_record_meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/active_record_meritfront/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/LukeClancy/dynamic-records-meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -152,4 +229,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the ActiveRecordMeritfront project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/active_record_meritfront/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the ActiveRecordMeritfront project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
