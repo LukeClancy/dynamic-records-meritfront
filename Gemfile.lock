@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    dynamic-records-meritfront (1.1.8)
+    dynamic-records-meritfront (1.1.10)
       hashid-rails
 
 GEM
