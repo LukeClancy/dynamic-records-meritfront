@@ -110,7 +110,7 @@ with options:
 - name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options (except name_modifiers). Not sure how it effects prepared statements.
-- async: does what it says but I haven't used it yet so. Probabably doesn't work
+- async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I have not personally looked into it.
 - other options: considered sql arguments
 
 <details>
