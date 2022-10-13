@@ -110,7 +110,7 @@ with options:
 - name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options (except name_modifiers). Not sure how it effects prepared statements.
-- async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I have not personally looked into it.
+- async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
 - other options: considered sql arguments
 
 <details>
@@ -127,7 +127,7 @@ Delete Friend Requests between two users after they have become friends.
 </details>
 
 <details>
-<summary>advanced example usage</summary>
+<summary>dynamic sql example usage</summary>
 Get all users who have made a friend request to a particular user with an optional limit.
 This is an example of why this method is good for dynamic prepared statements.
 
@@ -147,6 +147,48 @@ This is an example of why this method is good for dynamic prepared statements.
     ])
 ```
 </details>
+<details>
+<summary>example usage with selecting records that match list of ids</summary>
+Get users who match a list of ids. Uses a postgresql Array, see the potential issues section
+
+```ruby
+	id_list = [1,2,3]
+	return User.headache_sql('get_usrs', %Q{
+		SELECT * FROM users WHERE id = ANY (:id_list)
+	}, id_list: id_list)
+```
+</details>
+	
+<details>
+<summary>example usage a custom upsert</summary>
+Do an upsert
+
+```ruby
+	rows = uzrs.map{|u| [
+		u.id,		#user_id
+		self.id,	#conversation_id
+		from,		#invited_by
+		t,		#created_at
+		t,		#updated_at
+	]}
+	ApplicationRecord.headache_sql("upsert_conversation_invites_2", %Q{
+		INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
+		VALUES :rows
+		ON CONFLICT (conversation_id,user_id)
+		DO UPDATE SET updated_at = :time
+	}, rows: rows, time: t)
+```
+This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as headache_sql detected that we were sending duplicate information.
+```sql
+	INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
+	VALUES ($1,$2,$3,$4,$4)
+	ON CONFLICT (conversation_id,user_id)
+	DO UPDATE SET updated_at = $4
+	-- [["rows_1", 15], ["rows_2", 67], ["rows_3", 6], ["rows_4", "2022-10-13 20:49:27.441372"]]
+```
+</details>
+	
+	
 
 #### self.headache_preload(records, associations)
 Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation).
@@ -170,6 +212,13 @@ This gem was made with a postgresql database. Although most of the headache_sql 
 
 Let me know if this actually becomes an issue for someone and I will throw in a workaround.
 
+## Changelog
+	
+1.1.10
+- Added functionality in headache_sql where for sql arguments that are equal, we only use one sql argument instead of repeating arguments
+- Added functionality in headache_sql for 'multi row expressions' which are inputtable as an Array of Arrays. See the upsert example in the headache_sql documentation above for more.
+- Added a warning in the README for non-postgresql databases. Contact me if you hit issues and we can work it out.
+	
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/LukeClancy/dynamic-records-meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
