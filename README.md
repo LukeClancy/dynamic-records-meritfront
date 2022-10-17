@@ -76,6 +76,7 @@ obj.has_association?(:votes) #false
 </details>
 
 #### self.headache_sql(name, sql, opts = { })
+A better and safer way to write sql.
 with options: 
 - instantiate_class: returns User, Post, etc objects instead of straight sql output.
     I prefer doing the alterantive
