@@ -33,31 +33,6 @@ class ApplicationRecord < ActiveRecord::Base
 end
 ```
 
-### Hashed Global IDS
-
-hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
-
-I have been using hgids (Hashed Global IDs) for a while now and they have some unique benefits in front-end back-end communication. This is as they:
-1. hash the id which is good practice
-2. provide a way to have tags, this is good when updating different UI elements dynamically from the backend. For instance updating the @user_image without affecting the @user_name
-3. Carry the class with them, this can allow for more abstract and efficient code, and prevents id collisions between diffrent classes.
-
-#### methods from the hashid-rails gem
-
-See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Also note that I aliased .hashid to .hid and .find_by_hashid to .hfind
-
-#### methods from this gem
-
-1. hgid(tag: nil) - get the hgid with optional tag. Aliased to ghid
-2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end (especially over cable-ready and morphdom operations)
-3. self.locate_hgid(hgid_string, with_associations: nil, returns_nil: false) - locates the database record from a hgid. Here are some examples of usage:
-    - ApplicationRecord.locate_hgid(hgid) - <b>DANGEROUS</b> will return any object referenced by the hgid.
-    - User.locate_hgid(hgid) - locates the User record but only if the hgid references a user class. Fires an error if not.
-    - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
-    - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
-4. get_hgid_tag(hgid) - returns the tag attached to the hgid
-5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
-
 ### SQL methods
 
 These are methods written for easier sql usage.
@@ -205,6 +180,31 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     puts comments[0].votes #this line should be preloaded and hence not call the database
 ```
 </details>
+
+### Hashed Global IDS
+
+hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
+
+I have been using hgids (Hashed Global IDs) for a while now and they have some unique benefits in front-end back-end communication. This is as they:
+1. hash the id which is good practice
+2. provide a way to have tags, this is good when updating different UI elements dynamically from the backend. For instance updating the @user_image without affecting the @user_name
+3. Carry the class with them, this can allow for more abstract and efficient code, and prevents id collisions between diffrent classes.
+
+#### methods from the hashid-rails gem
+
+See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Also note that I aliased .hashid to .hid and .find_by_hashid to .hfind
+
+#### methods from this gem
+
+1. hgid(tag: nil) - get the hgid with optional tag. Aliased to ghid
+2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end (especially over cable-ready and morphdom operations)
+3. self.locate_hgid(hgid_string, with_associations: nil, returns_nil: false) - locates the database record from a hgid. Here are some examples of usage:
+    - ApplicationRecord.locate_hgid(hgid) - <b>DANGEROUS</b> will return any object referenced by the hgid.
+    - User.locate_hgid(hgid) - locates the User record but only if the hgid references a user class. Fires an error if not.
+    - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
+    - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
+4. get_hgid_tag(hgid) - returns the tag attached to the hgid
+5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
 
 ## Potential Issues
 
