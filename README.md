@@ -33,31 +33,6 @@ class ApplicationRecord < ActiveRecord::Base
 end
 ```
 
-### Hashed Global IDS
-
-hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
-
-I have been using hgids (Hashed Global IDs) for a while now and they have some unique benefits in front-end back-end communication. This is as they:
-1. hash the id which is good practice
-2. provide a way to have tags, this is good when updating different UI elements dynamically from the backend. For instance updating the @user_image without affecting the @user_name
-3. Carry the class with them, this can allow for more abstract and efficient code, and prevents id collisions between diffrent classes.
-
-#### methods from the hashid-rails gem
-
-See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Also note that I aliased .hashid to .hid and .find_by_hashid to .hfind
-
-#### methods from this gem
-
-1. hgid(tag: nil) - get the hgid with optional tag. Aliased to ghid
-2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end (especially over cable-ready and morphdom operations)
-3. self.locate_hgid(hgid_string, with_associations: nil, returns_nil: false) - locates the database record from a hgid. Here are some examples of usage:
-    - ApplicationRecord.locate_hgid(hgid) - <b>DANGEROUS</b> will return any object referenced by the hgid.
-    - User.locate_hgid(hgid) - locates the User record but only if the hgid references a user class. Fires an error if not.
-    - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
-    - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
-4. get_hgid_tag(hgid) - returns the tag attached to the hgid
-5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
-
 ### SQL methods
 
 These are methods written for easier sql usage.
@@ -101,6 +76,7 @@ obj.has_association?(:votes) #false
 </details>
 
 #### self.headache_sql(name, sql, opts = { })
+A better and safer way to write sql.
 with options: 
 - instantiate_class: returns User, Post, etc objects instead of straight sql output.
     I prefer doing the alterantive
@@ -109,7 +85,7 @@ with options:
 - prepare: sets whether the db will preprocess the strategy for lookup (defaults true) (have not verified the prepared-ness)
 - name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
-    this disables other options (except name_modifiers). Not sure how it effects prepared statements.
+    this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements.
 - async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
 - other options: considered sql arguments
 
@@ -205,6 +181,31 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     puts comments[0].votes #this line should be preloaded and hence not call the database
 ```
 </details>
+	
+### Hashed Global IDS
+
+hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
+
+I have been using hgids (Hashed Global IDs) for a while now and they have some unique benefits in front-end back-end communication. This is as they:
+1. hash the id which is good practice
+2. provide a way to have tags, this is good when updating different UI elements dynamically from the backend. For instance updating the @user_image without affecting the @user_name
+3. Carry the class with them, this can allow for more abstract and efficient code, and prevents id collisions between diffrent classes.
+
+#### methods from the hashid-rails gem
+
+See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Also note that I aliased .hashid to .hid and .find_by_hashid to .hfind
+
+#### methods from this gem
+
+1. hgid(tag: nil) - get the hgid with optional tag. Aliased to ghid
+2. hgid_as_selector(str, attribute: 'id') - get a css selector for the hgid, good for updating the front-end (especially over cable-ready and morphdom operations)
+3. self.locate_hgid(hgid_string, with_associations: nil, returns_nil: false) - locates the database record from a hgid. Here are some examples of usage:
+    - ApplicationRecord.locate_hgid(hgid) - <b>DANGEROUS</b> will return any object referenced by the hgid.
+    - User.locate_hgid(hgid) - locates the User record but only if the hgid references a user class. Fires an error if not.
+    - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
+    - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
+4. get_hgid_tag(hgid) - returns the tag attached to the hgid
+5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
 
 ## Potential Issues
 
@@ -212,6 +213,10 @@ This gem was made with a postgresql database. Although most of the headache_sql 
 
 Let me know if this actually becomes an issue for someone and I will throw in a workaround.
 
+## Next Up
+- I have the beginnings of something called swiss_instaload in mind, which will load multiple tables at the same time. For instance instead of Doing a ```usrs = User.all``` combined with a ```usrs.preload(:votes)```, which takes two sql requests, it could be done in one. Its kind of a crazy and dubious idea (efficiency wise), but I have a working prototype. It works by casting everything to json before returning it from the database. There might be a better way to do that long term though.
+- will be changing names from headache_* which is a bit negative to swiss_* as in swiss_army_knife which is known for its wide versitility. headache names will become aliases.
+	
 ## Changelog
 	
 1.1.10
