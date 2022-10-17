@@ -133,10 +133,10 @@ module DynamicRecordsMeritfront
 			(args.length == (associations & args).length)
 		end
 		
-		def blind_hgid(id, tag: nil)
+		def blind_hgid(id, tag: nil, encode: true)
 		# this method is to get an hgid for a class without actually calling it down from the database.
 		# For example Notification.blind_hgid 1 will give gid://PROJECT_NAME/Notification/69DAB69 etc.
-			unless id.class == String
+			if id.class == Integer and encode
 				id = self.encode_id id
 			end
 			gid = "gid://#{PROJECT_NAME}/#{self.to_s}/#{id}"
