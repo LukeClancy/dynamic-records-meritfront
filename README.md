@@ -180,7 +180,7 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     puts comments[0].votes #this line should be preloaded and hence not call the database
 ```
 </details>
-
+	
 ### Hashed Global IDS
 
 hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
@@ -212,6 +212,10 @@ This gem was made with a postgresql database. Although most of the headache_sql 
 
 Let me know if this actually becomes an issue for someone and I will throw in a workaround.
 
+## Next Up
+- I have the beginnings of something called swiss_instaload in mind, which will load multiple tables at the same time. For instance instead of Doing a ```usrs = User.all``` combined with a ```usrs.preload(:votes)```, which takes two sql requests, it could be done in one. Its kind of a crazy and dubious idea (efficiency wise), but I have a working prototype. It works by casting everything to json before returning it.
+- will be changing names from headache_* which is a bit negative to swiss_* as in swiss_army_knife which is known for its wide versitility. headache names will become aliases.
+	
 ## Changelog
 	
 1.1.10
