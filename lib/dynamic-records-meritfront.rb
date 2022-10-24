@@ -18,54 +18,56 @@ module DynamicRecordsMeritfront
 		#should work, probably able to override by redefining in ApplicationRecord class.
 		#Note we defined here as it breaks early on as Rails.application returns nil
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
-        attr_accessor :dynamic
+		DYNAMIC_SQL_RAW = true
+		attr_accessor :dynamic
 	end
 
-    class MultiRowExpression
-        #this class is meant to be used in congunction with headache_sql method
-        #Could be used like so in headache_sql:
-        
-        #ApplicationRecord.headache_sql( "teeeest", %Q{
-        #	INSERT INTO tests(id, username, is_awesome)
-        #	VALUES :rows
-        #	ON CONFLICT SET is_awesome = true
-        #}, rows: [[1, luke, true], [2, josh, false]])
-    
-        #which would output this sql
-    
-        #	INSERT INTO tests(id, username, is_awesome)
-        #	VALUES ($0,$1,$2),($3,$4,$5)
-        #	ON CONFLICT SET is_awesome = true
-    
-        attr_accessor :val
-        def initialize(val)
-            #assuming we are putting in an array of arrays.
-            self.val = val
-        end
-        def for_query(x = 0, unique_value_hash:)
-            #accepts x = current number of variables previously processed
-            #returns ["sql string with $# location information", variables themselves in order, new x]
-            db_val = val.map{|attribute_array| "(#{
-                attribute_index = 0
-                attribute_array.map{|attribute|
-                    prexist_num = unique_value_hash[attribute]
-                    if prexist_num
-                        attribute_array[attribute_index] = nil
-                        ret = "$#{prexist_num}"
-                    else
-                        unique_value_hash[attribute] = x
-                        ret = "$#{x}"
-                        x += 1
-                    end
-                    attribute_index += 1
-                    next ret
-                }.join(",")
-            })"}.join(",")
-            return db_val, val.flatten.select{|a| not a.nil?}, x
-        end
-    end
+	class MultiRowExpression
+		#this class is meant to be used in congunction with headache_sql method
+		#Could be used like so in headache_sql:
+		
+		#ApplicationRecord.headache_sql( "teeeest", %Q{
+		#	INSERT INTO tests(id, username, is_awesome)
+		#	VALUES :rows
+		#	ON CONFLICT SET is_awesome = true
+		#}, rows: [[1, luke, true], [2, josh, false]])
+	
+		#which would output this sql
+	
+		#	INSERT INTO tests(id, username, is_awesome)
+		#	VALUES ($0,$1,$2),($3,$4,$5)
+		#	ON CONFLICT SET is_awesome = true
+	
+		attr_accessor :val
+		def initialize(val)
+			#assuming we are putting in an array of arrays.
+			self.val = val
+		end
+		def for_query(x = 0, unique_value_hash:)
+			#accepts x = current number of variables previously processed
+			#returns ["sql string with $# location information", variables themselves in order, new x]
+			db_val = val.map{|attribute_array| "(#{
+				attribute_index = 0
+				attribute_array.map{|attribute|
+					prexist_num = unique_value_hash[attribute]
+					if prexist_num
+						attribute_array[attribute_index] = nil
+						ret = "$#{prexist_num}"
+					else
+						unique_value_hash[attribute] = x
+						ret = "$#{x}"
+						x += 1
+					end
+					attribute_index += 1
+					next ret
+				}.join(",")
+			})"}.join(",")
+			return db_val, val.flatten.select{|a| not a.nil?}, x
+		end
+	end
 
 	module ClassMethods
+
 		def has_run_migration?(nm)
 		#put in a string name of the class and it will say if it has allready run the migration.
 		#good during enum migrations as the code to migrate wont run if enumerate is there 
@@ -237,136 +239,319 @@ module DynamicRecordsMeritfront
 			Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) }
 		}
 
-        def convert_to_query_attribute(name, v)
-            #yes its dumb I know dont look at me look at rails
-    
-            # https://stackoverflow.com/questions/40407700/rails-exec-query-bindings-ignored
-            # binds = [ ActiveRecord::Relation::QueryAttribute.new(
-            # 	"id", 6, ActiveRecord::Type::Integer.new
-            # )]
-            # ApplicationRecord.connection.exec_query(
-            # 	'SELECT * FROM users WHERE id = $1', 'sql', binds
-            # )
-    
-            return v if v.kind_of? ActiveRecord::Relation::QueryAttribute	#so users can have fine-grained control if they are trying to do something
-                #that we didn't handle properly.
-    
-            type = DB_TYPE_MAPS[v.class]
-            if type.nil?
-                raise StandardError.new("#{v}'s class #{v.class} unsupported type right now for ApplicationRecord#headache_sql")
-            elsif type.class == Proc
-                a = v[0]
-                # if a.nil?
-                # 	a = Integer
-                # elsif a.class == Array
-                a = a.nil? ? Integer : a.class
-                type = type.call(a)
-            else
-                type = type.new
-            end
-            
-            ActiveRecord::Relation::QueryAttribute.new( name, v, type )
-        end
+		def convert_to_query_attribute(name, v)
+			#yes its dumb I know dont look at me look at rails
+	
+			# https://stackoverflow.com/questions/40407700/rails-exec-query-bindings-ignored
+			# binds = [ ActiveRecord::Relation::QueryAttribute.new(
+			# 	"id", 6, ActiveRecord::Type::Integer.new
+			# )]
+			# ApplicationRecord.connection.exec_query(
+			# 	'SELECT * FROM users WHERE id = $1', 'sql', binds
+			# )
+	
+			return v if v.kind_of? ActiveRecord::Relation::QueryAttribute	#so users can have fine-grained control if they are trying to do something
+				#that we didn't handle properly.
+	
+			type = DB_TYPE_MAPS[v.class]
+			if type.nil?
+				raise StandardError.new("#{v}'s class #{v.class} unsupported type right now for ApplicationRecord#headache_sql")
+			elsif type.class == Proc
+				a = v[0]
+				# if a.nil?
+				# 	a = Integer
+				# elsif a.class == Array
+				a = a.nil? ? Integer : a.class
+				type = type.call(a)
+			else
+				type = type.new
+			end
+			
+			ActiveRecord::Relation::QueryAttribute.new( name, v, type )
+		end
 		#allows us to preload on a list and not a active record relation. So basically from the output of headache_sql
-		def headache_preload(records, associations)
+		def dynamic_preload(records, associations)
 			ActiveRecord::Associations::Preloader.new(records: records, associations: associations).call
 		end
-		def headache_sql(name, sql, opts = { }) #see below for opts
-            # - instantiate_class - returns User, Post, etc objects instead of straight sql output.
-            #		I prefer doing the alterantive
-            #			User.headache_class(...)
-            #		which is also supported
-            # - prepare sets whether the db will preprocess the strategy for lookup (defaults true) (I dont think turning this off works...)
-            # - name_modifiers allows one to change the preprocess associated name, useful in cases of dynamic sql.
-            # - multi_query allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
-            #		this disables other options (except name_modifiers). Not sure how it effects prepared statements. Its a fairly useless
-            #		command as you can do multiple queries anyway with 'WITH' statements and also gain the other options.
-            # - async does what it says but I haven't used it yet so. Probabably doesn't work
-            #
-            # Any other option is assumed to be a sql argument (see other examples in code base)
-    
-            #grab options from the opts hash
-            instantiate_class = opts.delete(:instantiate_class)
-            name_modifiers = opts.delete(:name_modifiers)
-            name_modifiers ||= []
-            prepare = opts.delete(:prepare) != false
-            multi_query = opts.delete(:multi_query) == true
-            async = opts.delete(:async) == true
-            params = opts
-    
-            #unique value hash cuts down on the number of repeated arguments like in an update or insert statement
-            #by checking if there is an equal existing argument and then using that argument number instead.
-            #If this functionality is used at a lower level we should probably remove this.
-            unique_value_hash = {}
-    
-            #allows dynamic sql prepared statements.
-            for mod in name_modifiers
-                name << "_#{mod.to_s}" unless mod.nil?
-            end
-    
-            unless multi_query
-                #https://stackoverflow.com/questions/49947990/can-i-execute-a-raw-sql-query-leverage-prepared-statements-and-not-use-activer/67442353#67442353
-                #change the keys to $1, $2 etc. this step is needed for ex. {id: 1, id_user: 2}.
-                #doing the longer ones first prevents id replacing :id_user -> 1_user
-                keys = params.keys.sort{|a,b| b.to_s.length <=> a.to_s.length}
-                sql_vals = []
-                x = 1
-                for key in keys
-                    #replace the key with $1, $2 etc
-                    v = params[key]
-                    
-                    #this is where we guess what it is
-                    looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
-    
-                    if v.class == MultiRowExpression or looks_like_multi_attribute_array
-                    #it looks like or is a multi-row expression (like those in an insert statement)
-                        v = MultiRowExpression.new(v) if looks_like_multi_attribute_array
-                        #process into usable information
-                        sql_for_replace, mat_vars, new_x = v.for_query(x, unique_value_hash: unique_value_hash)
-                        #replace the key with the sql
-                        if sql.gsub!(":#{key}", sql_for_replace) != nil
-                        #if successful set the new x number and append variables to our sql variables
-                            x = new_x
-                            name_num = 0
-                            mat_vars.each{|mat_var|
-                                name_num += 1
-                                sql_vals << convert_to_query_attribute("#{key}_#{name_num}", mat_var)
-                            }
-                        end
-                    else
-                        prexist_arg_num = unique_value_hash[v]
-                        if prexist_arg_num
-                            sql.gsub!(":#{key}", "$#{prexist_arg_num}")
-                        else
-                            if sql.gsub!(":#{key}", "$#{x}") == nil
-                                #nothing changed, param not used, delete it
-                                params.delete key
-                            else
-                                unique_value_hash[v] = x
-                                sql_vals << convert_to_query_attribute(key, v)
-                                x += 1
-                            end
-                        end
-                    end
-                end
-                ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
-            else
-                ret = ActiveRecord::Base.connection.execute sql, name
-            end
-    
-            #this returns a PG::Result object, which is pretty basic. To make this into User/Post/etc objects we do
-                    #the following
-            if instantiate_class or self != ApplicationRecord
-                instantiate_class = self if not instantiate_class
-                #no I am not actually this cool see https://stackoverflow.com/questions/30826015/convert-pgresult-to-an-active-record-model
-                fields = ret.columns
-                vals = ret.rows
-                ret = vals.map { |v|
-                    instantiate_class.instantiate(Hash[fields.zip(v)])
-                }
-            end
-            ret
-        end
+
+		alias headache_preload dynamic_preload
+		
+		def dynamic_sql(name, sql, opts = { }) #see below for opts
+			# - instantiate_class - returns User, Post, etc objects instead of straight sql output.
+			#		I prefer doing the alterantive
+			#			User.headache_class(...)
+			#		which is also supported
+			# - prepare sets whether the db will preprocess the strategy for lookup (defaults true) (I dont think turning this off works...)
+			# - name_modifiers allows one to change the preprocess associated name, useful in cases of dynamic sql.
+			# - multi_query allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
+			#		this disables other options (except name_modifiers). Not sure how it effects prepared statements. Its a fairly useless
+			#		command as you can do multiple queries anyway with 'WITH' statements and also gain the other options.
+			# - async does what it says but I haven't used it yet so. Probabably doesn't work
+			# - instaload is actually insane just look at the example in the readme yolo
+			#
+			# Any other option is assumed to be a sql argument (see other examples in code base)
+
+			#grab options from the opts hash
+			instantiate_class = opts.delete(:instantiate_class)
+			name_modifiers = opts.delete(:name_modifiers)
+			raw = opts.delete(:raw)
+			raw = DYNAMIC_SQL_RAW if raw.nil?
+			name_modifiers ||= []
+			prepare = opts.delete(:prepare) != false
+			multi_query = opts.delete(:multi_query) == true
+			async = opts.delete(:async) == true
+			params = opts
+
+			#unique value hash cuts down on the number of repeated arguments like in an update or insert statement
+			#by checking if there is an equal existing argument and then using that argument number instead.
+			#If this functionality is used at a lower level we should probably remove this.
+			unique_value_hash = {}
+
+			#allows dynamic sql prepared statements.
+			for mod in name_modifiers
+				name << "_#{mod.to_s}" unless mod.nil?
+			end
+
+			unless multi_query
+				#https://stackoverflow.com/questions/49947990/can-i-execute-a-raw-sql-query-leverage-prepared-statements-and-not-use-activer/67442353#67442353
+				#change the keys to $1, $2 etc. this step is needed for ex. {id: 1, id_user: 2}.
+				#doing the longer ones first prevents id replacing :id_user -> 1_user
+				keys = params.keys.sort{|a,b| b.to_s.length <=> a.to_s.length}
+				sql_vals = []
+				x = 1
+				for key in keys
+					#replace the key with $1, $2 etc
+					v = params[key]
+
+					#this is where we guess what it is
+					looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
+
+					if v.class == MultiRowExpression or looks_like_multi_attribute_array
+					#it looks like or is a multi-row expression (like those in an insert statement)
+						v = MultiRowExpression.new(v) if looks_like_multi_attribute_array
+						#process into usable information
+						sql_for_replace, mat_vars, new_x = v.for_query(x, unique_value_hash: unique_value_hash)
+						#replace the key with the sql
+						if sql.gsub!(":#{key}", sql_for_replace) != nil
+						#if successful set the new x number and append variables to our sql variables
+							x = new_x
+							name_num = 0
+							mat_vars.each{|mat_var|
+								name_num += 1
+								sql_vals << convert_to_query_attribute("#{key}_#{name_num}", mat_var)
+							}
+						end
+					else
+						prexist_arg_num = unique_value_hash[v]
+						if prexist_arg_num
+							sql.gsub!(":#{key}", "$#{prexist_arg_num}")
+						else
+							if sql.gsub!(":#{key}", "$#{x}") == nil
+								#nothing changed, param not used, delete it
+								params.delete key
+							else
+								unique_value_hash[v] = x
+								sql_vals << convert_to_query_attribute(key, v)
+								x += 1
+							end
+						end
+					end
+				end
+				ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
+			else
+				ret = ActiveRecord::Base.connection.execute sql, name
+			end
+
+			#this returns a PG::Result object, which is pretty basic. To make this into User/Post/etc objects we do
+					#the following
+			if instantiate_class or not self.abstract_class
+				instantiate_class = self if not instantiate_class
+				#no I am not actually this cool see https://stackoverflow.com/questions/30826015/convert-pgresult-to-an-active-record-model
+				ret = zip_ar_result(ret)
+				return ret.map{|r| dynamic_init(instantiate_class, r)}
+				# fields = ret.columns
+				# vals = ret.rows
+				# ret = vals.map { |v|
+				# 	dynamic_init()
+				# 	instantiate_class.instantiate(Hash[fields.zip(v)])
+				# }
+			else
+				if raw
+					return ret
+				else
+					return zip_ar_result(ret)
+				end
+			end
+		end
+		alias headache_sql dynamic_sql
+		
+		def instaload(sql, table_name: nil, relied_on: false)
+			table_name ||= "_" + self.to_s.underscore.downcase.pluralize
+			klass = self.to_s
+			sql = "\t" + sql.strip
+			return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on}
+		end
+
+		def _dynamic_instaload_handle_with_statements(with_statements)
+			%Q{WITH #{
+	with_statements.map{|ws|
+		"#{ws[:table_name]} AS (\n#{ws[:sql]}\n)"
+	}.join(", \n")
+}}
+		end
+
+		def _dynamic_instaload_union(insta_array)
+			insta_array.map{|insta|
+				start = "SELECT row_to_json(#{insta[:table_name]}.*) AS row, '#{insta[:klass]}' AS _klass, '#{insta[:table_name]}' AS _table_name FROM "
+				if insta[:relied_on]
+					ending = "#{insta[:table_name]}\n"
+				else
+					ending = "(\n#{insta[:sql]}\n) AS #{insta[:table_name]}\n"
+				end
+				next start + ending
+			}.join(" UNION ALL \n")
+			#{ other_statements.map{|os| "SELECT row_to_json(#{os[:table_name]}.*) AS row, '#{os[:klass]}' AS _klass FROM (\n#{os[:sql]}\n)) AS #{os[:table_name]}\n" }.join(' UNION ALL ')}
+		end
+
+		def dynamic_instaload_sql(name, insta_array, opts = { })
+			with_statements = insta_array.select{|a| a[:relied_on]}
+			sql = %Q{
+#{ _dynamic_instaload_handle_with_statements(with_statements) if with_statements.any? }
+#{ _dynamic_instaload_union(insta_array)}
+}
+			ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
+			ApplicationRecord.headache_sql(name, sql, opts).rows.each{|row|
+				#need to pre-parsed as it has a non-normal output.
+				table_name = row[2]
+				klass = row[1].constantize
+				json = row[0]
+				parsed = JSON.parse(json)
+
+				ret_hash[table_name ].push dynamic_init(klass, parsed)
+			}
+			return ret_hash
+		end
+		alias swiss_instaload_sql dynamic_instaload_sql
+
+		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, debug: false)
+			base_arr = instaload_sql_output[base_name]
+			
+			#return if there is nothing for us to attach to.
+			return unless base_arr.any?
+
+			#set variables for neatness and so we dont compute each time
+			#	base class information
+			base_class = base_arr.first.class
+			base_class_is_hash = base_class <= Hash
+			#	attach name information for variables
+			attach_name_sym = attach_name.to_sym
+			attach_name_with_at = "@#{attach_name}"
+			
+			#variable accessors and defaults.
+			base_arr.each{|o|
+				o.singleton_class.public_send(:attr_accessor, attach_name_sym) unless base_class_is_hash
+				o.instance_variable_set(attach_name_with_at, []) unless one_to_one
+			}
+
+			#make sure the attach class has something going on
+			attach_arr = instaload_sql_output[attach_name]
+			return unless attach_arr.any?
+			
+			#	attach class information
+			attach_class = attach_arr.first.class
+			attach_class_is_hash = attach_class <= Hash
+
+			#	default attach column info
+			default_attach_col = (base_class.to_s.downcase + "_id")
+
+			#decide on the method of getting the matching id for the base table
+			unless base_on
+				if base_class_is_hash
+					base_on = Proc.new{|x| x['id']}
+				else
+					base_on = Proc.new{|x| x.id}
+				end
+			end
+
+			#return an id->object hash for the base table for better access
+			h = base_arr.map{|o| 
+				[base_on.call(o), o]
+			}.to_h
+			
+			#decide on the method of getting the matching id for the attach table
+			unless attach_on
+				if attach_class_is_hash
+					attach_on = Proc.new{|x| x[default_attach_col]}
+				else
+					attach_on = Proc.new{|x| 
+							x.method(default_attach_col).call
+					}
+				end
+			end
+
+			# if debug
+			# 	Rails.logger.info(base_arr.map{|b|
+			# 		base_on.call(b)
+			# 	})
+			# 	Rails.logger.info(attach_arr.map{|a|
+			# 		attach_on.call(a)
+			# 	})
+			# end
+
+			#method of adding the object to the base
+			#(b=base, a=attach)
+			add_to_base = Proc.new{|b, a|
+				if one_to_one
+					if base_class_is_hash
+						b[attach_name] = a
+					else
+						b.instance_variable_set(attach_name_with_at, a)
+					end
+				else
+					if base_class_is_hash
+						b[attach_name].push a
+					else
+						b.instance_variable_get(attach_name_with_at).push a
+					end
+				end
+			}
+
+			#for every attachable
+			#	1. match base id to the attach id (both configurable)
+			#	2. cancel out if there is no match
+			#	3. otherwise add to the base object.
+			attach_arr.each{|attach|
+				if out = attach_on.call(attach) #you can use null to escape the vals
+					if base = h[out] #it is also escaped if no base element is found
+						add_to_base.call(base, attach)
+					end
+				end
+			}
+			return attach_arr
+		end
+		alias swiss_attach dynamic_attach
+
+		def zip_ar_result(x)
+			fields = x.columns
+			vals = x.rows
+			vals.map { |v|
+				Hash[fields.zip(v)]
+			}
+		end
+
+		def dynamic_init(klass, input)
+			if klass.abstract_class
+				return input
+			else
+				#handle attributes through ar if allowed. Throws an error on unkown variables, except apparently for devise classes? 😡
+				active_record_handled = input.slice(*(klass.attribute_names & input.keys))
+				record = klass.instantiate(active_record_handled)
+				#set those that were not necessarily expected
+				byebug
+				record.dynamic = input.slice(*(input.keys - klass.attribute_names))
+				return record
+			end
+		end
 
 		def quick_safe_increment(id, col, val)
 			where(id: id).update_all("#{col} = #{col} + #{val}")
