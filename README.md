@@ -205,7 +205,7 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
     - ApplicationRecord.locate_hgid(hgid, with_associations: [:votes]) - locates the record but only if the  record's class has a :votes active record association. So for instance, you can accept only votable objects for upvote functionality. Fires an error if the hgid does not match.
     - User.locate_hgid(hgid, returns_nil: true) - locates the hgid but only if it is the user class. Returns nil if not.
 4. get_hgid_tag(hgid) - returns the tag attached to the hgid
-5. self.blind_hgid(id, tag) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods
+5. self.blind_hgid(id, tag: nil, encode: true) - creates a hgid without bringing the object down from the database. Useful with hashid-rails encode_id and decode_id methods.
 
 ## Potential Issues
 
@@ -223,6 +223,9 @@ Let me know if this actually becomes an issue for someone and I will throw in a 
 - Added functionality in headache_sql where for sql arguments that are equal, we only use one sql argument instead of repeating arguments
 - Added functionality in headache_sql for 'multi row expressions' which are inputtable as an Array of Arrays. See the upsert example in the headache_sql documentation above for more.
 - Added a warning in the README for non-postgresql databases. Contact me if you hit issues and we can work it out.
+
+1.1.11
+- Added encode option for blind_hgid to allow creation of just a general gid
 	
 ## Contributing
 
