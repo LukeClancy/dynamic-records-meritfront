@@ -547,8 +547,7 @@ module DynamicRecordsMeritfront
 				active_record_handled = input.slice(*(klass.attribute_names & input.keys))
 				record = klass.instantiate(active_record_handled)
 				#set those that were not necessarily expected
-				byebug
-				record.dynamic = input.slice(*(input.keys - klass.attribute_names))
+				record.dynamic = input.slice(*(input.keys - klass.attribute_names)).transform_keys{|k|k.to_sym}
 				return record
 			end
 		end
