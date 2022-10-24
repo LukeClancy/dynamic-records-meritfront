@@ -18,6 +18,7 @@ module DynamicRecordsMeritfront
 		#should work, probably able to override by redefining in ApplicationRecord class.
 		#Note we defined here as it breaks early on as Rails.application returns nil
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
+        attr_accessor :dynamic
 	end
 
     class MultiRowExpression
@@ -115,12 +116,10 @@ module DynamicRecordsMeritfront
 	
 			return migration_ran
 		end
-	
 		def list_associations
 			#lists associations (see has_association? below)
 			reflect_on_all_associations.map(&:name)
 		end
-
 		def has_association?(*args)
 			#checks whether current class has needed association (for example, checks it has comments)
 			#associations can be seen in has_many belongs_to and other similar methods
@@ -131,8 +130,7 @@ module DynamicRecordsMeritfront
 			args = args.flatten.map { |a| a.to_sym }
 			associations = list_associations
 			(args.length == (associations & args).length)
-		end
-		
+		end		
 		def blind_hgid(id, tag: nil, encode: true)
 		# this method is to get an hgid for a class without actually calling it down from the database.
 		# For example Notification.blind_hgid 1 will give gid://PROJECT_NAME/Notification/69DAB69 etc.
@@ -146,13 +144,11 @@ module DynamicRecordsMeritfront
 				"#{gid}@#{tag}"
 			end
 		end
-
 		def string_as_selector(str, attribute: 'id')
 			#this is needed to allow us to quey various strange characters in the id etc. (see hgids)
 			#also useful for querying various attributes
 			return "*[#{attribute}=\"#{str}\"]"
 		end
-	
 		def locate_hgid(hgid_string, with_associations: nil, returns_nil: false)
 			if hgid_string == nil or hgid_string.class != String
 				if returns_nil
@@ -199,7 +195,6 @@ module DynamicRecordsMeritfront
 				raise StandardError.new 'Not the expected class, or a subclass of ApplicationRecord if called on that.'
 			end
 		end
-	
 		def get_hgid_tag(hgid_string)
 			if hgid_string.include?('@')
 				return hgid_string.split('@')[-1]
@@ -272,12 +267,10 @@ module DynamicRecordsMeritfront
             
             ActiveRecord::Relation::QueryAttribute.new( name, v, type )
         end
-
 		#allows us to preload on a list and not a active record relation. So basically from the output of headache_sql
 		def headache_preload(records, associations)
 			ActiveRecord::Associations::Preloader.new(records: records, associations: associations).call
 		end
-
 		def headache_sql(name, sql, opts = { }) #see below for opts
             # - instantiate_class - returns User, Post, etc objects instead of straight sql output.
             #		I prefer doing the alterantive
