@@ -66,6 +66,7 @@ module DynamicRecordsMeritfront
 		end
 	end
 
+	RecordForPrint = Struct.new(:class, :attributes, :dynamic)
 	module ClassMethods
 
 		def dynamic_print_h(v)
