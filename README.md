@@ -4,7 +4,7 @@ Dyanmic Records Meritfront contains some helpers methods for active record. Thes
 1. communicate with the frontend quicker and more effectively through Global HashIds
 2. communicate with the backend more effectively with raw sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have a page-long dynamic sql query.
 
-I dont tend to get much feedback, so any given would be appreciated.
+Note that postgres is a requirement for this gem. I dont tend to get much feedback, so any given would be appreciated.
 
 ## Installation
 
@@ -30,6 +30,7 @@ Or install it yourself as:
 class ApplicationRecord < ActiveRecord::Base
 	self.abstract_class = true
 	include DynamicRecordsMeritfront
+	DYNAMIC_SQL_RAW = false #<--- not required, but suggested to be turned off. Can be switched on for a per-request basis. Make sure this line is after include statement.
 end
 ```
 
@@ -75,8 +76,8 @@ obj.has_association?(:votes) #false
 ```
 </details>
 
-#### self.headache_sql(name, sql, opts = { })
-A better and safer way to write sql.
+#### self.dynamic_sql(name, sql, opts = { })
+A better and safer way to write sql. Can return either a Hash, ActiveRecord::Response object, or an instantiated model.
 with options: 
 - instantiate_class: returns User, Post, etc objects instead of straight sql output.
     I prefer doing the alterantive
@@ -87,14 +88,15 @@ with options:
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements.
 - async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
+- raw: whether to return a ActiveRecord::Response object or a hash
 - other options: considered sql arguments
-
+	
 <details>
 <summary>example usage</summary>
 Delete Friend Requests between two users after they have become friends.
 
 ```ruby
-    ApplicationRecord.headache_sql("remove_friend_requests_before_creating_friend", %Q{
+    ApplicationRecord.dynamic_sql("remove_friend_requests_before_creating_friend", %Q{
         DELETE FROM friend_requests
         WHERE (requestie_id = :uid and requester_id = :other_user_id) OR
             (requester_id = :uid and requestie_id = :other_user_id)
@@ -108,7 +110,7 @@ Get all users who have made a friend request to a particular user with an option
 This is an example of why this method is good for dynamic prepared statements.
 
 ```ruby
-    return User.headache_sql('get_friend_requests', %Q{
+    return User.dynamic_sql('get_friend_requests', %Q{
         SELECT * FROM (
             SELECT other_user.id, ..., friend_requests.created_at
             FROM users
@@ -123,6 +125,28 @@ This is an example of why this method is good for dynamic prepared statements.
     ])
 ```
 </details>
+	
+<details>
+<summary>access non-standard column for table with a ActiveRecord model</summary>
+
+```ruby
+    #get a normal test vote
+    test =  Vote.dynamic_sql('test', %Q{
+        SELECT id FROM votes LIMIT 1
+    }).first
+    v.inspect 	#   "#<Vote id: 696969>"
+    v.dynamic   #   nil
+
+    #get a cool test vote. Note that is_this_vote_cool is not on the vote table.
+    test =  Vote.dynamic_sql('test', %Q{
+        SELECT id, 'yes' AS is_this_vote_cool FROM votes LIMIT 1
+    }).first
+   test.inspect #   "#<Vote id: 696969>"	we dont have the dynamic attributes as normal ones because of some implementation issues and some real issues to do with accidently logging sensative info.
+   test.dynamic	#   {:is_this_vote_cool=>"yes"}
+   test.dynamic[:is_this_vote_cool]  # "yes"
+```
+</details>
+
 <details>
 <summary>example usage with selecting records that match list of ids</summary>
 Get users who match a list of ids. Uses a postgresql Array, see the potential issues section
@@ -147,7 +171,7 @@ Do an upsert
 		t,		#created_at
 		t,		#updated_at
 	]}
-	ApplicationRecord.headache_sql("upsert_conversation_invites_2", %Q{
+	ApplicationRecord.dynamic_sql("upsert_conversation_invites_2", %Q{
 		INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
 		VALUES :rows
 		ON CONFLICT (conversation_id,user_id)
@@ -164,10 +188,9 @@ This will output sql similar to below. Note this can be done for multiple conver
 ```
 </details>
 	
-	
 
-#### self.headache_preload(records, associations)
-Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation).
+#### self.dynamic_preload(records, associations)
+Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation). This is basically the same as a normal relation preload but it works on a list. 
 
 <details>
 <summary>example usage</summary>
@@ -179,8 +202,132 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     })
     ApplicationRecord.headache_preload(comments, [:votes])
     puts comments[0].votes #this line should be preloaded and hence not call the database
+
+    #note that this above is basically the same as doing the below assuming there is a comments relation on the user model.
+    user.comments.preload(:votes)
 ```
 </details>
+	
+#### self.dynamic_instaload_sql(name, insta_array, opts = { })
+*instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Seems to be more efficient to preloading when i tested it.
+- name is passed to dynamic_sql and is the name of the sql request
+- opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
+- insta-array is an array of instaload method outputs. See examples for more.
+	
+<details>
+<summary>example usage</summary>
+#get list of users, those users friends, and who those users follow, all in one request.
+
+```ruby
+   # the ruby entered
+   output = ApplicationRecord.swiss_instaload_sql('test', [
+      User.instaload('SELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.created_at > :time', table_name: 'limited_users', relied_on: true),
+      User.instaload(%Q{
+         SELECT friends.smaller_user_id AS id, friends.bigger_user_id AS friended_to
+         FROM friends INNER JOIN limited_users ON limited_users.id = bigger_user_id
+         UNION
+         SELECT friends.bigger_user_id AS id, friends.smaller_user_id AS friended_to
+	 FROM friends INNER JOIN limited_users ON limited_users.id = smaller_user_id
+      }, table_name: 'users_friends'),
+      ApplicationRecord.instaload(%Q{
+         SELECT follows.followable_id, follows.follower_id
+         FROM follows
+         INNER JOIN limited_users ON follows.follower_id = limited_users.id
+      }, table_name: "users_follows")
+   ], user_ids: uids, time: t)
+```
+the sql:
+```sql
+   WITH limited_users AS (
+      SELECT id FROM users WHERE users.id = ANY ($1) AND users.created_at > $2
+   )
+   SELECT row_to_json(limited_users.*) AS row, 'User' AS _klass, 'limited_users' AS _table_name FROM limited_users
+   UNION ALL 
+   SELECT row_to_json(users_friends.*) AS row, 'User' AS _klass, 'users_friends' AS _table_name FROM (
+         SELECT friends.smaller_user_id AS id, friends.bigger_user_id AS friended_to
+         FROM friends INNER JOIN limited_users ON limited_users.id = bigger_user_id
+         UNION
+         SELECT friends.bigger_user_id AS id, friends.smaller_user_id AS friended_to
+         FROM friends INNER JOIN limited_users ON limited_users.id = smaller_user_id
+      ) AS users_friends
+   UNION ALL 
+   SELECT row_to_json(users_follows.*) AS row, 'ApplicationRecord' AS _klass, 'users_follows' AS _table_name FROM (
+         SELECT follows.followable_id, follows.follower_id
+         FROM follows
+         INNER JOIN limited_users ON follows.follower_id = limited_users.id
+      ) AS users_follows
+```
+	
+the output:
+```ruby
+    {
+      "limited_users"=>[#<User id: 3>, #<User id: 1>, #<User id: 4>],
+      "users_friends"=>[
+         #<User id: 21>,
+         #<User id: 5>,
+      ...],
+      "users_follows"=> [
+         {"followable_id"=>22, "follower_id"=>4},
+         {"followable_id"=>23, "follower_id"=>4}, ...]
+   }
+```
+</details>
+
+#### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
+taking the output of the dynamic_instaload_sql, this method attaches the models together so they have relations. Note: still undecided on using singleton attr_accessors or putting the relationship on the model.dynamic hash. Its currently using the accessors.
+- instaload_sql_output: output of above dynamic_instaload_sql
+- base_name: the name of the table we will be attaching to
+- attach_name: the name of the table that will be attached
+- base_on: put a proc here to override the matching behavior on the base table. Default is {|user| user.id}
+- attach_on: put a proc here to override the matching behavior on the attach table. Default is {|post| post.user_id}
+- one_to_one: switches between a one-to-one relationship or not
+
+<details> 
+<summary> attach information for each limited_user in the dynamic_instaload_sql example </summary>
+	
+```ruby
+	
+ApplicationRecord.dynamic_attach(out, 'limited_users', 'users_friends', attach_on: Proc.new {|users_friend|
+	users_friend.dynamic[:friended_to]	
+})
+ApplicationRecord.dynamic_attach(out, 'limited_users', 'users_follows', attach_on: Proc.new {|follow|
+	follow['follower_id']
+})
+pp out['limited_users'].map{|o| {id: o.id, users_friends: o.users_friends.first(4), users_follows: o.users_follows.first(4)}}
+
+```
+
+printed output: 
+```ruby
+[{:id=>3,
+  :users_friends=>[#<User id: 21>, #<User id: 5>, #<User id: 6>],
+  :users_follows=>
+   [{"followable_id"=>935, "follower_id"=>3},
+    {"followable_id"=>938, "follower_id"=>3},
+    {"followable_id"=>939, "follower_id"=>3},
+    {"followable_id"=>932, "follower_id"=>3}]},
+ {:id=>14,
+  :users_friends=>
+   [#<User id: 18>, #<User id: 9>, #<User id: 21>, #<User id: 5>],
+  :users_follows=>
+   [{"followable_id"=>936, "follower_id"=>14},
+    {"followable_id"=>937, "follower_id"=>14},
+    {"followable_id"=>938, "follower_id"=>14},
+    {"followable_id"=>939, "follower_id"=>14}]},
+ {:id=>9,
+  :users_friends=>
+   [#<User id: 19>, #<User id: 15>, #<User id: 14>, #<User id: 7>],
+  :users_follows=>
+   [{"followable_id"=>938, "follower_id"=>9},
+    {"followable_id"=>937, "follower_id"=>9},
+    {"followable_id"=>932, "follower_id"=>9},
+    {"followable_id"=>933, "follower_id"=>9}]}, ... ]
+
+```
+
+</details>
+	
+
 	
 ### Hashed Global IDS
 
@@ -209,13 +356,7 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 ## Potential Issues
 
-This gem was made with a postgresql database. Although most of the headache_sql code <i>should</i> be usable between databases, there is no abstracted ActiveRecord array type, and no similar classes to ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array for non-postgresql databases (at least, none I could find). I am not 100% sure that it will be an issue, but it might be.
-
-Let me know if this actually becomes an issue for someone and I will throw in a workaround.
-
-## Next Up
-- I have the beginnings of something called swiss_instaload in mind, which will load multiple tables at the same time. For instance instead of Doing a ```usrs = User.all``` combined with a ```usrs.preload(:votes)```, which takes two sql requests, it could be done in one. Its kind of a crazy and dubious idea (efficiency wise), but I have a working prototype. It works by casting everything to json before returning it from the database. There might be a better way to do that long term though.
-- will be changing names from headache_* which is a bit negative to swiss_* as in swiss_army_knife which is known for its wide versitility. headache names will become aliases.
+This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods. I dont have the bandwidth to help switch it elsewhere.
 	
 ## Changelog
 	
@@ -226,7 +367,16 @@ Let me know if this actually becomes an issue for someone and I will throw in a 
 
 1.1.11
 - Added encode option for blind_hgid to allow creation of just a general gid
-	
+
+2.0.2
+- major changes to the gem
+- many methods changed names from headache... to dynamic... but I threw in some aliases so both work
+- when using dynamic_sql (headache_sql), if you select a column name that doesn't officialy exist on that model, it gets put in the new attr_accessor called dynamic. This allows for more dynamic usage of AR and avoids conflicts with its interal workings (which assume every attribute corresponds to an actual table-column).
+- dynamic_sql can be configured to return a hash rather than the current default which is a ActiveRecord::Response object, this can be configured with the DYNAMIC_SQL_RAW variable on your abstract class (usually ApplicationRecord) or per-request with the new :raw option on dynamic_sql. The hash is way better but I made it optional for backwards compat.
+- dynamic_instaload_sql is now a thing. It seems to be more efficient than preloading. See more above.
+- the output of dynamic_instaload_sql can be made more useful with dynamic_attach. See more above.
+- postgres is now a pretty hard requirement as I use its database features liberally and I am somewhat certain that other databases wont work in the exact same way
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/LukeClancy/dynamic-records-meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
