@@ -531,7 +531,9 @@ module DynamicRecordsMeritfront
 					attach_on = Proc.new{|x| x[default_attach_col]}
 				else
 					attach_on = Proc.new{|x| 
-							x.method(default_attach_col).call
+						ret = x.attributes[default_attach_col]
+						ret ||= x.dynamic[default_attach_col]
+						ret
 					}
 				end
 			end
