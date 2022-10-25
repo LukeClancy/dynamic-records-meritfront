@@ -71,28 +71,29 @@ module DynamicRecordsMeritfront
 		def dynamic_print_h(v)
 			v = v.dup
 			return v.to_h.transform_values{|x|
-				dynamic_print(x, print: false).to_s
-			}.to_s
+				dynamic_print(x, print: false)
+			}
 		end
 
 		def dynamic_print_arr(v)
 			v = v.dup
 			return v.map{|x|
-				dynamic_print(x, print: false).to_s
-			}.join("\n")
+				dynamic_print(x, print: false)
+			}
 		end
 
 		def dynamic_print_obj(v)
 			if v.class < ActiveRecord::Base
-				"#<#{v.class} attributes: #{v.attributes}, dynamic: #{dynamic_print(v.dynamic, print: false)}>"
+				#return v.dynamic
+				return RecordForPrint.new(v.class.to_s, v.attributes, dynamic_print(v.dynamic, print: false))
 			else
-				v.inspect
+				v
 			end
 		end
 
 		def dynamic_print(v, print: true)
 			return if Rails.env.production?
-			if v.class == Hash || v.class == OpenStruct
+			if v.class.kind_of? Hash || v.class.kind_of OpenStruct
 				ret = dynamic_print_h v
 			elsif v.class == Array
 				ret = dynamic_print_arr v
