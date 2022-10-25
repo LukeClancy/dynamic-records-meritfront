@@ -83,7 +83,7 @@ module DynamicRecordsMeritfront
 		end
 
 		def dynamic_print_obj(v)
-			if self < ActiveRecord::Base
+			if v.class < ActiveRecord::Base
 				[v, dynamic_print(v.dynamic)]
 			else
 				v
