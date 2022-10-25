@@ -375,6 +375,7 @@ This gem was made with a postgresql database. This could cause a lot of issues w
 - dynamic_sql can be configured to return a hash rather than the current default which is a ActiveRecord::Response object, this can be configured with the DYNAMIC_SQL_RAW variable on your abstract class (usually ApplicationRecord) or per-request with the new :raw option on dynamic_sql. The hash is way better but I made it optional for backwards compat.
 - dynamic_instaload_sql is now a thing. It seems to be more efficient than preloading. See more above.
 - the output of dynamic_instaload_sql can be made more useful with dynamic_attach. See more above.
+- postgres is now a pretty hard requirement as I use its database features liberally and I am somewhat certain that other databases wont work in the exact same way
 
 ## Contributing
 
