@@ -433,7 +433,7 @@ This gem was made with a postgresql database. This could cause a lot of issues w
 - the output of dynamic_instaload_sql can be made more useful with dynamic_attach. See more above.
 - postgres is now a pretty hard requirement as I use its database features liberally and I am somewhat certain that other databases wont work in the exact same way
 
-2.0.15
+2.0.16
 - changed model.dynamic attribute to an OpenStruct class which just makes it easier to work with
 - changed dynamic_attach so that it now uses the model.dynamic attribute, instead of using singleton classes. This is better practice, and also contains all the moving parts of this gem in one place.
 - added the dynamic_print method to easier see the objects one is working with.
