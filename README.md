@@ -30,7 +30,7 @@ Or install it yourself as:
 class ApplicationRecord < ActiveRecord::Base
 	self.abstract_class = true
 	include DynamicRecordsMeritfront
-	DYNAMIC_SQL_RAW = false #<--- not required, but suggested. Can be turned off on per-request basis. Make sure after include statement.
+	DYNAMIC_SQL_RAW = false #<--- not required, but suggested to be turned off. Can be switched on for a per-request basis. Make sure this line is after include statement.
 end
 ```
 
