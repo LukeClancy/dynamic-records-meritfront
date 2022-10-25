@@ -19,7 +19,6 @@ module DynamicRecordsMeritfront
 		#Note we defined here as it breaks early on as Rails.application returns nil
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
 		DYNAMIC_SQL_RAW = true
-		attr_accessor :dynamic
 	end
 
 	class MultiRowExpression
@@ -66,47 +65,7 @@ module DynamicRecordsMeritfront
 		end
 	end
 
-	RecordForPrint = Struct.new(:class, :attributes, :dynamic)
 	module ClassMethods
-
-		def dynamic_print_h(v)
-			v = v.dup
-			return v.to_h.transform_values{|x|
-				dynamic_print(x, print: false)
-			}
-		end
-
-		def dynamic_print_arr(v)
-			v = v.dup
-			return v.map{|x|
-				dynamic_print(x, print: false)
-			}
-		end
-
-		def dynamic_print_obj(v)
-			if v.class < ActiveRecord::Base
-				#return v.dynamic
-				return RecordForPrint.new(v.class.to_s, v.attributes, dynamic_print(v.dynamic, print: false))
-			else
-				v
-			end
-		end
-
-		def dynamic_print(v, print: true)
-			return if Rails.env.production?
-			if v.class == Hash || v.class == OpenStruct
-				ret = dynamic_print_h v
-			elsif v.class == Array
-				ret = dynamic_print_arr v
-			else
-				ret = dynamic_print_obj v
-			end
-			if print
-				pp ret
-			else
-				return ret
-			end
-		end
 
 		def has_run_migration?(nm)
 		#put in a string name of the class and it will say if it has allready run the migration.
@@ -492,9 +451,17 @@ module DynamicRecordsMeritfront
 			
 			#variable accessors and defaults.
 			base_arr.each{ |o|
-				unless one_to_one or base_class_is_hash
-					o.dynamic ||= OpenStruct.new
-					o.dynamic[attach_name_sym] = []
+				#
+				#   there is no way to set an attribute after instantiation I tried I looked
+				#   I dealt with silent breaks on symbol keys, I have wasted time, its fine.
+				cancer = o.instance_variable_get(:@attributes).instance_variable_get(:@values)
+				if not base_class_is_hash
+					if one_to_one
+						#attach name must be a string
+						cancer[attach_name] = nil
+					else
+						cancer[attach_name] = []
+					end
 				end
 				# o.dynamic o.singleton_class.public_send(:attr_accessor, attach_name_sym) unless base_class_is_hash
 				# o.instance_variable_set(attach_name_with_at, []) unless one_to_one
@@ -531,9 +498,7 @@ module DynamicRecordsMeritfront
 					attach_on = Proc.new{|x| x[default_attach_col]}
 				else
 					attach_on = Proc.new{|x| 
-						ret = x.attributes[default_attach_col]
-						ret ||= x.dynamic[default_attach_col]
-						ret
+						x.attributes[default_attach_col]
 					}
 				end
 			end
@@ -551,21 +516,9 @@ module DynamicRecordsMeritfront
 			#(b=base, a=attach)
 			add_to_base = Proc.new{|b, a|
 				if one_to_one
-					if base_class_is_hash
-						b[attach_name] = a
-					else
-						b.dynamic ||= OpenStruct.new
-						b.dynamic[attach_name] = a
-						#b.instance_variable_set(attach_name_with_at, a)
-					end
+					b[attach_name] = a
 				else
-					if base_class_is_hash
-						b[attach_name].push a
-					else
-						# o.dynamic o.single
-						b.dynamic[attach_name].push a
-						#b.instance_variable_get(attach_name_with_at).push a
-					end
+					b[attach_name].push a
 				end
 			}
 
@@ -596,12 +549,13 @@ module DynamicRecordsMeritfront
 			if klass.abstract_class
 				return input
 			else
-				#handle attributes through ar if allowed. Throws an error on unkown variables, except apparently for devise classes? 😡
-				active_record_handled = input.slice(*(klass.attribute_names & input.keys))
-				record = klass.instantiate(active_record_handled)
-				#set those that were not necessarily expected
-				not_expected = input.slice(*(input.keys - klass.attribute_names))
-				record.dynamic = OpenStruct.new(not_expected.transform_keys{|k|k.to_sym}) if not_expected.keys.any?
+				record = klass.instantiate(input.stringify_keys ) #trust me they need to be stringified
+				# #handle attributes through ar if allowed. Throws an error on unkown variables, except apparently for devise classes? 😡
+				# active_record_handled = input.slice(*(klass.attribute_names & input.keys))
+				# record = klass.instantiate(active_record_handled)
+				# #set those that were not necessarily expected
+				# not_expected = input.slice(*(input.keys - klass.attribute_names))
+				# record.dynamic = OpenStruct.new(not_expected.transform_keys{|k|k.to_sym}) if not_expected.keys.any?
 				return record
 			end
 		end
