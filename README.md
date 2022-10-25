@@ -356,9 +356,7 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 ## Potential Issues
 
-This gem was made with a postgresql database. Although most of the headache_sql code <i>should</i> be usable between databases, there is no abstracted ActiveRecord array type, and no similar classes to ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array for non-postgresql databases (at least, none I could find). I am not 100% sure that it will be an issue, but it might be.
-
-Let me know if this actually becomes an issue for someone and I will throw in a workaround.
+This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods. I dont have the bandwidth to help switch it elsewhere.
 	
 ## Changelog
 	
@@ -373,8 +371,8 @@ Let me know if this actually becomes an issue for someone and I will throw in a 
 2.0.2
 - major changes to the gem
 - many methods changed names from headache... to dynamic... but I threw in some aliases so both work
-- when using dynamic_sql (headache_sql), if you select a column name that doesn't officialy exist on that model, it gets put in the new attr_accessor called dynamic. This allows for more dynamic usage of AR. 
-- dynamic_sql can be configured to return a hash rather than the current default which is a ActiveRecord::Response object, this can be configured with the DYNAMIC_SQL_RAW variable on your abstract class (usually ApplicationRecord) or per-request with the new :raw option on dynamic_sql
+- when using dynamic_sql (headache_sql), if you select a column name that doesn't officialy exist on that model, it gets put in the new attr_accessor called dynamic. This allows for more dynamic usage of AR and avoids conflicts with its interal workings (which assume every attribute corresponds to an actual table-column).
+- dynamic_sql can be configured to return a hash rather than the current default which is a ActiveRecord::Response object, this can be configured with the DYNAMIC_SQL_RAW variable on your abstract class (usually ApplicationRecord) or per-request with the new :raw option on dynamic_sql. The hash is way better but I made it optional for backwards compat.
 - dynamic_instaload_sql is now a thing. It seems to be more efficient than preloading. See more above.
 - the output of dynamic_instaload_sql can be made more useful with dynamic_attach. See more above.
 
