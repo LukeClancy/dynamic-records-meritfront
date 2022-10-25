@@ -131,7 +131,7 @@ module DynamicRecordsMeritfront
 			migration = ActiveRecord::Base.connection.migration_context.migrations.filter!{|a|
 					a.name == nm
 				}.first
-			
+
 			#if the migration object is nil, it has not yet been created
 			if migration.nil?
 				Rails.logger.info "No migration found for #{nm}. The migration has not yet been created, or is foreign to this database."
@@ -479,14 +479,19 @@ module DynamicRecordsMeritfront
 			#	base class information
 			base_class = base_arr.first.class
 			base_class_is_hash = base_class <= Hash
+			
 			#	attach name information for variables
 			attach_name_sym = attach_name.to_sym
 			attach_name_with_at = "@#{attach_name}"
 			
 			#variable accessors and defaults.
-			base_arr.each{|o|
-				o.singleton_class.public_send(:attr_accessor, attach_name_sym) unless base_class_is_hash
-				o.instance_variable_set(attach_name_with_at, []) unless one_to_one
+			base_arr.each{ |o|
+				unless one_to_one or base_class_is_hash
+					o.dynamic ||= OpenStruct.new
+					o.dynamic[attach_name_sym] = []
+				end
+				# o.dynamic o.singleton_class.public_send(:attr_accessor, attach_name_sym) unless base_class_is_hash
+				# o.instance_variable_set(attach_name_with_at, []) unless one_to_one
 			}
 
 			#make sure the attach class has something going on
@@ -541,13 +546,17 @@ module DynamicRecordsMeritfront
 					if base_class_is_hash
 						b[attach_name] = a
 					else
-						b.instance_variable_set(attach_name_with_at, a)
+						b.dynamic ||= OpenStruct.new
+						b.dynamic[attach_name] = a
+						#b.instance_variable_set(attach_name_with_at, a)
 					end
 				else
 					if base_class_is_hash
 						b[attach_name].push a
 					else
-						b.instance_variable_get(attach_name_with_at).push a
+						# o.dynamic o.single
+						b.dynamic[attach_name].push a
+						#b.instance_variable_get(attach_name_with_at).push a
 					end
 				end
 			}
