@@ -68,6 +68,40 @@ module DynamicRecordsMeritfront
 
 	module ClassMethods
 
+		def dynamic_print_h(v)
+			v = v.dup
+			return v.to_h.transform_values{|x|
+				dynamic_print(x)
+			}
+		end
+
+		def dynamic_print_arr(v)
+			v = v.dup
+			return v.map{|x|
+				dynamic_print(x)
+			}
+		end
+
+		def dynamic_print_obj(v)
+			if self < ActiveRecord::Base
+				[v, dynamic_print(v.dynamic)]
+			else
+				v
+			end
+		end
+
+		def dynamic_print(v)
+			return if Rails.env.production?
+			if v.class == Hash || v.class == OpenStruct
+				ret = dynamic_print_h v
+			elsif v.class == Array
+				ret = dynamic_print_arr v
+			else
+				ret = dynamic_print_obj v
+			end
+			pp ret
+		end
+
 		def has_run_migration?(nm)
 		#put in a string name of the class and it will say if it has allready run the migration.
 		#good during enum migrations as the code to migrate wont run if enumerate is there 
@@ -287,7 +321,8 @@ module DynamicRecordsMeritfront
 			#		this disables other options (except name_modifiers). Not sure how it effects prepared statements. Its a fairly useless
 			#		command as you can do multiple queries anyway with 'WITH' statements and also gain the other options.
 			# - async does what it says but I haven't used it yet so. Probabably doesn't work
-			# - instaload is actually insane just look at the example in the readme yolo
+			# - raw switches between using a Hash or a ActiveRecord::Response object when used on a abstract class
+
 			#
 			# Any other option is assumed to be a sql argument (see other examples in code base)
 
@@ -420,6 +455,7 @@ module DynamicRecordsMeritfront
 #{ _dynamic_instaload_union(insta_array)}
 }
 			ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
+			opts[:raw] = true
 			ApplicationRecord.headache_sql(name, sql, opts).rows.each{|row|
 				#need to pre-parsed as it has a non-normal output.
 				table_name = row[2]
@@ -433,7 +469,7 @@ module DynamicRecordsMeritfront
 		end
 		alias swiss_instaload_sql dynamic_instaload_sql
 
-		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, debug: false)
+		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
 			base_arr = instaload_sql_output[base_name]
 			
 			#return if there is nothing for us to attach to.
@@ -548,7 +584,7 @@ module DynamicRecordsMeritfront
 				record = klass.instantiate(active_record_handled)
 				#set those that were not necessarily expected
 				not_expected = input.slice(*(input.keys - klass.attribute_names))
-				record.dynamic = not_expected.transform_keys{|k|k.to_sym} if not_expected.keys.any?
+				record.dynamic = OpenStruct.new(not_expected.transform_keys{|k|k.to_sym}) if not_expected.keys.any?
 				return record
 			end
 		end
@@ -556,6 +592,8 @@ module DynamicRecordsMeritfront
 		def quick_safe_increment(id, col, val)
 			where(id: id).update_all("#{col} = #{col} + #{val}")
 		end
+
+		
 	end
 
 	def list_associations
