@@ -78,13 +78,13 @@ module DynamicRecordsMeritfront
 		def dynamic_print_arr(v)
 			v = v.dup
 			return v.map{|x|
-				dynamic_print(x, print: false)
-			}
+				dynamic_print(x, print: false).to_s
+			}.join("\n")
 		end
 
 		def dynamic_print_obj(v)
 			if v.class < ActiveRecord::Base
-				"#<#{v.class} attributes: #{v.attributes}, dynamic: #{dynamic_print(v.dynamic, print: false)}"
+				"#<#{v.class} attributes: #{v.attributes}, dynamic: #{dynamic_print(v.dynamic, print: false)}>"
 			else
 				v
 			end
