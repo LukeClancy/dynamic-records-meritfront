@@ -71,8 +71,8 @@ module DynamicRecordsMeritfront
 		def dynamic_print_h(v)
 			v = v.dup
 			return v.to_h.transform_values{|x|
-				dynamic_print(x, print: false)
-			}
+				dynamic_print(x, print: false).to_s
+			}.to_s
 		end
 
 		def dynamic_print_arr(v)
@@ -86,7 +86,7 @@ module DynamicRecordsMeritfront
 			if v.class < ActiveRecord::Base
 				"#<#{v.class} attributes: #{v.attributes}, dynamic: #{dynamic_print(v.dynamic, print: false)}>"
 			else
-				v
+				v.inspect
 			end
 		end
 
