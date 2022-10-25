@@ -71,26 +71,26 @@ module DynamicRecordsMeritfront
 		def dynamic_print_h(v)
 			v = v.dup
 			return v.to_h.transform_values{|x|
-				dynamic_print(x)
+				dynamic_print(x, print: false)
 			}
 		end
 
 		def dynamic_print_arr(v)
 			v = v.dup
 			return v.map{|x|
-				dynamic_print(x)
+				dynamic_print(x, print: false)
 			}
 		end
 
 		def dynamic_print_obj(v)
 			if v.class < ActiveRecord::Base
-				[v, dynamic_print(v.dynamic)]
+				[v, dynamic_print(v.dynamic, print: false)]
 			else
 				v
 			end
 		end
 
-		def dynamic_print(v)
+		def dynamic_print(v, print: true)
 			return if Rails.env.production?
 			if v.class == Hash || v.class == OpenStruct
 				ret = dynamic_print_h v
@@ -99,7 +99,11 @@ module DynamicRecordsMeritfront
 			else
 				ret = dynamic_print_obj v
 			end
-			pp ret
+			if print
+				pp ret
+			else
+				return ret
+			end
 		end
 
 		def has_run_migration?(nm)
