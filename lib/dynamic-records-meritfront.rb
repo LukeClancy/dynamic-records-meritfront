@@ -84,7 +84,7 @@ module DynamicRecordsMeritfront
 
 		def dynamic_print_obj(v)
 			if v.class < ActiveRecord::Base
-				{obj: v.inspect, dynamic: dynamic_print(v.dynamic, print: false)}
+				"#<#{v.class} attributes: #{v.attributes}, dynamic: #{dynamic_print(v.dynamic, print: false)}"
 			else
 				v
 			end
