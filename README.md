@@ -141,9 +141,10 @@ This is an example of why this method is good for dynamic prepared statements.
     test =  Vote.dynamic_sql('test', %Q{
         SELECT id, 'yes' AS is_this_vote_cool FROM votes LIMIT 1
     }).first
-   test.inspect #   "#<Vote id: 696969>"	we dont have the dynamic attributes as normal ones because of some implementation issues and some real issues to do with accidently logging sensative info.
-   test.dynamic	#   {:is_this_vote_cool=>"yes"}
-   test.dynamic[:is_this_vote_cool]  # "yes"
+   test.inspect #   "#<Vote id: 696969>"	we dont have the dynamic attributes as normal ones because of some implementation issues and some real issues to do with accidently logging sensative info. Implementation issues are to do with the fact that ActiveRecord::Base doesn't expect database columns to change randomly, and doesn't allow us to append to the attributes accessor.
+   test.dynamic	# <OpenStruct is_this_vote_cool='yes'>
+   test.dynamic.is_this_vote_cool  # "yes"
+   test.dynamic[:is_this_vote_cool] #yes
 ```
 </details>
 
@@ -293,7 +294,7 @@ ApplicationRecord.dynamic_attach(out, 'limited_users', 'users_friends', attach_o
 ApplicationRecord.dynamic_attach(out, 'limited_users', 'users_follows', attach_on: Proc.new {|follow|
 	follow['follower_id']
 })
-pp out['limited_users'].map{|o| {id: o.id, users_friends: o.users_friends.first(4), users_follows: o.users_follows.first(4)}}
+pp out['limited_users'].map{|o| {id: o.id, users_friends: o.dynamic.users_friends.first(4), users_follows: o.dynamic.users_follows.first(4)}}
 
 ```
 
@@ -326,8 +327,63 @@ printed output:
 ```
 
 </details>
-	
 
+#### dynamic_print(v, print: true)
+- prints models along with dynamic variables using the pretty-printer. Fails in production to prevent leaking sensative information.
+- The reason this exists is that I could not override the inspect method for ActiveRecord. In my case, devise then overrode it from me. A little annoying. Because of that, this is now the best way to view both attributes and dynamic variables in the same location.
+
+<details> 
+<summary> example using output of dynamic_attach example </summary>
+	
+```ruby	
+ApplicationRecord.dynamic_print(out['limited_users'])
+```
+
+printed output: 
+```ruby
+[#<struct DynamicRecordsMeritfront::RecordForPrint
+  class="User",
+  attributes={"id"=>3},
+  dynamic=
+   {:users_friends=>
+     [#<struct DynamicRecordsMeritfront::RecordForPrint
+       class="User",
+       attributes={"id"=>5},
+       dynamic={:friended_to=>3}>,
+      #<struct DynamicRecordsMeritfront::RecordForPrint
+       class="User",
+       attributes={"id"=>6},
+       dynamic={:friended_to=>3}>,
+      #<struct DynamicRecordsMeritfront::RecordForPrint
+       class="User",
+       attributes={"id"=>21},
+       dynamic={:friended_to=>3}>],
+    :users_follows=>
+     [{"followable_id"=>935, "follower_id"=>3},
+      {"followable_id"=>938, "follower_id"=>3},
+      {"followable_id"=>939, "follower_id"=>3},
+      {"followable_id"=>932, "follower_id"=>3},
+      {"followable_id"=>5, "follower_id"=>3},
+      {"followable_id"=>4, "follower_id"=>3},
+      {"followable_id"=>23, "follower_id"=>3},
+      {"followable_id"=>22, "follower_id"=>3},
+      {"followable_id"=>15, "follower_id"=>3},
+      {"followable_id"=>6, "follower_id"=>3},
+      {"followable_id"=>3, "follower_id"=>3},
+      {"followable_id"=>8, "follower_id"=>3},
+      {"followable_id"=>7, "follower_id"=>3},
+      {"followable_id"=>1, "follower_id"=>3},
+      {"followable_id"=>18, "follower_id"=>3},
+      {"followable_id"=>16, "follower_id"=>3},
+      {"followable_id"=>21, "follower_id"=>3},
+      {"followable_id"=>9, "follower_id"=>3},
+      {"followable_id"=>19, "follower_id"=>3}]}>,
+ 
+...
+
+```
+
+</details>
 	
 ### Hashed Global IDS
 
@@ -376,6 +432,11 @@ This gem was made with a postgresql database. This could cause a lot of issues w
 - dynamic_instaload_sql is now a thing. It seems to be more efficient than preloading. See more above.
 - the output of dynamic_instaload_sql can be made more useful with dynamic_attach. See more above.
 - postgres is now a pretty hard requirement as I use its database features liberally and I am somewhat certain that other databases wont work in the exact same way
+
+2.0.15
+- changed model.dynamic attribute to an OpenStruct class which just makes it easier to work with
+- changed dynamic_attach so that it now uses the model.dynamic attribute, instead of using singleton classes. This is better practice, and also contains all the moving parts of this gem in one place.
+- added the dynamic_print method to easier see the objects one is working with.
 
 ## Contributing
 
