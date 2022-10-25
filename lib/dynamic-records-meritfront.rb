@@ -93,7 +93,7 @@ module DynamicRecordsMeritfront
 
 		def dynamic_print(v, print: true)
 			return if Rails.env.production?
-			if v.class.kind_of? Hash || v.class.kind_of OpenStruct
+			if v.class == Hash || v.class == OpenStruct
 				ret = dynamic_print_h v
 			elsif v.class == Array
 				ret = dynamic_print_arr v
