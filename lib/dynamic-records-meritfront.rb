@@ -91,13 +91,6 @@ module DynamicRecordsMeritfront
 		"#<#{self.class} #{inspection}>"
 	end
 
-	def do_terrible_code_sins_to_dynamically_add_attributes_to_ar_models(atr, value)
-		#set a bunk type of the generic value type
-		self.attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
-		#Set it
-		self[atr] = value
-	end
-
 	module ClassMethods
 
 		def has_run_migration?(nm)
