@@ -364,7 +364,8 @@ This gem was made with a postgresql database. This could cause a lot of issues w
 - added the dynamic_print method to easier see the objects one is working with.
 
 2.0.21
-- figured out adding attributes to models, so .dynamic OpenStruct no longer needed, no longer need dynamic_print.
+- figured out how to add to a model's @attributes, so .dynamic OpenStruct no longer needed, no longer need dynamic_print, singletons are out aswell. In now mocks a regular attribute.
+- overrode inspect to show the dynamic attributes aswell, warning about passwords printed to logs etc.
 
 ## Contributing
 
