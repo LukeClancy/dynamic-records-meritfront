@@ -65,6 +65,39 @@ module DynamicRecordsMeritfront
 		end
 	end
 
+	def questionable_attribute_set(atr, value)
+		#this is needed on initalization of a new variable after the actual thing has been made already.
+
+		#set a bunk type of the generic value type
+		@attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
+		#Set it
+		self[atr] = value
+	end
+
+	def inspect
+		#basically the same as the upstream active record function (as of october 25 2022 on AR V7.0.4)
+		#except that I changed self.class.attribute_names -> self.attribute_names to pick up our
+		#dynamic insanity. Was this a good idea? Well I guess its better than not doing it
+		inspection = if defined?(@attributes) && @attributes
+			self.attribute_names.filter_map do |name|
+			if _has_attribute?(name)
+				"#{name}: #{attribute_for_inspect(name)}"
+			end
+			end.join(", ")
+		else
+			"not initialized"
+		end
+
+		"#<#{self.class} #{inspection}>"
+	end
+
+	def do_terrible_code_sins_to_dynamically_add_attributes_to_ar_models(atr, value)
+		#set a bunk type of the generic value type
+		self.attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
+		#Set it
+		self[atr] = value
+	end
+
 	module ClassMethods
 
 		def has_run_migration?(nm)
@@ -434,6 +467,8 @@ module DynamicRecordsMeritfront
 		end
 		alias swiss_instaload_sql dynamic_instaload_sql
 
+		
+
 		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
 			base_arr = instaload_sql_output[base_name]
 			
@@ -445,22 +480,19 @@ module DynamicRecordsMeritfront
 			base_class = base_arr.first.class
 			base_class_is_hash = base_class <= Hash
 			
-			#	attach name information for variables
-			attach_name_sym = attach_name.to_sym
-			attach_name_with_at = "@#{attach_name}"
 			
 			#variable accessors and defaults.
 			base_arr.each{ |o|
 				#
 				#   there is no way to set an attribute after instantiation I tried I looked
 				#   I dealt with silent breaks on symbol keys, I have wasted time, its fine.
-				cancer = o.instance_variable_get(:@attributes).instance_variable_get(:@values)
+				
 				if not base_class_is_hash
 					if one_to_one
 						#attach name must be a string
-						cancer[attach_name] = nil
+						o.questionable_attribute_set(attach_name, nil)
 					else
-						cancer[attach_name] = []
+						o.questionable_attribute_set(attach_name, [])
 					end
 				end
 				# o.dynamic o.singleton_class.public_send(:attr_accessor, attach_name_sym) unless base_class_is_hash
