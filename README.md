@@ -135,16 +135,12 @@ This is an example of why this method is good for dynamic prepared statements.
         SELECT id FROM votes LIMIT 1
     }).first
     v.inspect 	#   "#<Vote id: 696969>"
-    v.dynamic   #   nil
 
     #get a cool test vote. Note that is_this_vote_cool is not on the vote table.
     test =  Vote.dynamic_sql('test', %Q{
         SELECT id, 'yes' AS is_this_vote_cool FROM votes LIMIT 1
     }).first
-   test.inspect #   "#<Vote id: 696969>"	we dont have the dynamic attributes as normal ones because of some implementation issues and some real issues to do with accidently logging sensative info. Implementation issues are to do with the fact that ActiveRecord::Base doesn't expect database columns to change randomly, and doesn't allow us to append to the attributes accessor.
-   test.dynamic	# <OpenStruct is_this_vote_cool='yes'>
-   test.dynamic.is_this_vote_cool  # "yes"
-   test.dynamic[:is_this_vote_cool] #yes
+   test.inspect #   #<Vote id: 696969, is_this_vote_cool: "yes"> #getting attributes added dynamically to the models, and also showing up on inspects, was... more difficult than i anticipated.
 ```
 </details>
 
@@ -221,7 +217,7 @@ Preload :votes on some comments. :votes is an active record has_many relation.
 
 ```ruby
    # the ruby entered
-   output = ApplicationRecord.swiss_instaload_sql('test', [
+   output = ApplicationRecord.dynamic_instaload_sql('test', [
       User.instaload('SELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.created_at > :time', table_name: 'limited_users', relied_on: true),
       User.instaload(%Q{
          SELECT friends.smaller_user_id AS id, friends.bigger_user_id AS friended_to
@@ -261,26 +257,32 @@ the sql:
 	
 the output:
 ```ruby
-    {
-      "limited_users"=>[#<User id: 3>, #<User id: 1>, #<User id: 4>],
-      "users_friends"=>[
-         #<User id: 21>,
-         #<User id: 5>,
-      ...],
-      "users_follows"=> [
-         {"followable_id"=>22, "follower_id"=>4},
-         {"followable_id"=>23, "follower_id"=>4}, ...]
-   }
+{"limited_users"=>
+  [#<User id: 3>,
+   #<User id: 14>,
+   #<User id: 9>,
+   ...],
+ "users_friends"=>
+  [#<User id: 9, friended_to: 14>,
+   #<User id: 21, friended_to: 14>,
+   #<User id: 14, friended_to: 9>,
+   ...],
+ "users_follows"=>
+  [{"followable_id"=>931, "follower_id"=>23},
+   {"followable_id"=>932, "follower_id"=>23},
+   {"followable_id"=>935, "follower_id"=>19},
+   ...]}
+
+
 ```
 </details>
 
 #### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
-taking the output of the dynamic_instaload_sql, this method attaches the models together so they have relations. Note: still undecided on using singleton attr_accessors or putting the relationship on the model.dynamic hash. Its currently using the accessors.
-- instaload_sql_output: output of above dynamic_instaload_sql
+taking the output of the dynamic_instaload_sql, this method attaches the models together so they have relations.
 - base_name: the name of the table we will be attaching to
 - attach_name: the name of the table that will be attached
-- base_on: put a proc here to override the matching behavior on the base table. Default is {|user| user.id}
-- attach_on: put a proc here to override the matching behavior on the attach table. Default is {|post| post.user_id}
+- base_on: put a proc here to override the matching key for the base table. Default is, for a user and post type, {|user| user.id}
+- attach_on: put a proc here to override the matching key for the attach table. Default is, for a user and post type, {|post| post.user_id}
 - one_to_one: switches between a one-to-one relationship or not
 
 <details> 
@@ -289,98 +291,21 @@ taking the output of the dynamic_instaload_sql, this method attaches the models 
 ```ruby
 	
 ApplicationRecord.dynamic_attach(out, 'limited_users', 'users_friends', attach_on: Proc.new {|users_friend|
-	users_friend.dynamic[:friended_to]	
+	users_friend.friended_to
 })
 ApplicationRecord.dynamic_attach(out, 'limited_users', 'users_follows', attach_on: Proc.new {|follow|
 	follow['follower_id']
 })
-pp out['limited_users'].map{|o| {id: o.id, users_friends: o.dynamic.users_friends.first(4), users_follows: o.dynamic.users_follows.first(4)}}
+pp out['limited_users']
 
 ```
 
 printed output: 
 ```ruby
-[{:id=>3,
-  :users_friends=>[#<User id: 21>, #<User id: 5>, #<User id: 6>],
-  :users_follows=>
-   [{"followable_id"=>935, "follower_id"=>3},
-    {"followable_id"=>938, "follower_id"=>3},
-    {"followable_id"=>939, "follower_id"=>3},
-    {"followable_id"=>932, "follower_id"=>3}]},
- {:id=>14,
-  :users_friends=>
-   [#<User id: 18>, #<User id: 9>, #<User id: 21>, #<User id: 5>],
-  :users_follows=>
-   [{"followable_id"=>936, "follower_id"=>14},
-    {"followable_id"=>937, "follower_id"=>14},
-    {"followable_id"=>938, "follower_id"=>14},
-    {"followable_id"=>939, "follower_id"=>14}]},
- {:id=>9,
-  :users_friends=>
-   [#<User id: 19>, #<User id: 15>, #<User id: 14>, #<User id: 7>],
-  :users_follows=>
-   [{"followable_id"=>938, "follower_id"=>9},
-    {"followable_id"=>937, "follower_id"=>9},
-    {"followable_id"=>932, "follower_id"=>9},
-    {"followable_id"=>933, "follower_id"=>9}]}, ... ]
-
-```
-
-</details>
-
-#### dynamic_print(v, print: true)
-- prints models along with dynamic variables using the pretty-printer. Fails in production to prevent leaking sensative information.
-- The reason this exists is that I could not override the inspect method for ActiveRecord. In my case, devise then overrode it from me. A little annoying. Because of that, this is now the best way to view both attributes and dynamic variables in the same location.
-
-<details> 
-<summary> example using output of dynamic_attach example </summary>
-	
-```ruby	
-ApplicationRecord.dynamic_print(out['limited_users'])
-```
-
-printed output: 
-```ruby
-[#<struct DynamicRecordsMeritfront::RecordForPrint
-  class="User",
-  attributes={"id"=>3},
-  dynamic=
-   {:users_friends=>
-     [#<struct DynamicRecordsMeritfront::RecordForPrint
-       class="User",
-       attributes={"id"=>5},
-       dynamic={:friended_to=>3}>,
-      #<struct DynamicRecordsMeritfront::RecordForPrint
-       class="User",
-       attributes={"id"=>6},
-       dynamic={:friended_to=>3}>,
-      #<struct DynamicRecordsMeritfront::RecordForPrint
-       class="User",
-       attributes={"id"=>21},
-       dynamic={:friended_to=>3}>],
-    :users_follows=>
-     [{"followable_id"=>935, "follower_id"=>3},
-      {"followable_id"=>938, "follower_id"=>3},
-      {"followable_id"=>939, "follower_id"=>3},
-      {"followable_id"=>932, "follower_id"=>3},
-      {"followable_id"=>5, "follower_id"=>3},
-      {"followable_id"=>4, "follower_id"=>3},
-      {"followable_id"=>23, "follower_id"=>3},
-      {"followable_id"=>22, "follower_id"=>3},
-      {"followable_id"=>15, "follower_id"=>3},
-      {"followable_id"=>6, "follower_id"=>3},
-      {"followable_id"=>3, "follower_id"=>3},
-      {"followable_id"=>8, "follower_id"=>3},
-      {"followable_id"=>7, "follower_id"=>3},
-      {"followable_id"=>1, "follower_id"=>3},
-      {"followable_id"=>18, "follower_id"=>3},
-      {"followable_id"=>16, "follower_id"=>3},
-      {"followable_id"=>21, "follower_id"=>3},
-      {"followable_id"=>9, "follower_id"=>3},
-      {"followable_id"=>19, "follower_id"=>3}]}>,
- 
-...
-
+#<User id: 3, users_friends: [#<User id: 5, friended_to: 3>, #<User id: 6, friended_to: 3>, #<User id: 21, friended_to: 3>], users_follows: [{"followable_id"=>935, "follower_id"=>3}, {"followable_id"=>938, "follower_id"=>3}, ...]>,
+ #<User id: 14, users_friends: [#<User id: 9, friended_to: 14>, #<User id: 21, friended_to: 14>, ...], users_follows: [{"followable_id"=>936, "follower_id"=>14}, {"followable_id"=>937, "follower_id"=>14}, {"followable_id"=>938, "follower_id"=>14}, ...]>,
+ #<User id: 9, users_friends: [#<User id: 14, friended_to: 9>, #<User id: 22, friended_to: 9>, ...], users_follows: [{"followable_id"=>938, "follower_id"=>9}, {"followable_id"=>937, "follower_id"=>9}, ...]>,
+ #<User id: 19, users_friends: [#<User id: 1, friended_to: 19>, #<User id: 18, friended_to: 19>, ...], users_follows: [{"followable_id"=>935, "follower_id"=>19}, {"followable_id"=>936, "follower_id"=>19}, {"followable_id"=>938, "follower_id"=>19}, ...]>,
 ```
 
 </details>
