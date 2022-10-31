@@ -197,6 +197,7 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     comments = Comment.headache_sql('get_comments', %Q{
         SELECT * FROM comments LIMIT 4
     })
+    comments.class.to_s # 'Array' note: not a relation.
     ApplicationRecord.headache_preload(comments, [:votes])
     puts comments[0].votes #this line should be preloaded and hence not call the database
 
