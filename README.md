@@ -338,7 +338,8 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 ## Potential Issues
 
-This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods. I dont have the bandwidth to help switch it elsewhere.
+- This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods if you do not. I dont have the bandwidth to help switch it elsewhere, but if you want to take charge of that, I would be more than happy to assist by answering questions an pointing out any areas that need transitioning.
+- If you return a password column (for example) as pwd, this gem will accept that. That would mean that the password could me accessed as model.pwd. This is cool - until all passwords are getting logged in production servers. So be wary of accessing, storing, and logging of sensative information. Active Record has in built solutions for this type of data, as long as you dont change the column name. This gem is a sharp knife, its very versitile, but its also, you know, sharp.
 	
 ## Changelog
 	
