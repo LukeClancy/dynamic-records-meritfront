@@ -282,7 +282,7 @@ the output:
 Used in dynamic_instaload_sql, and formats information for that method. 
 
 #### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
-taking the output of the dynamic_instaload_sql, this method attaches the models together so they have relations.
+taking the output of the dynamic_instaload_sql, this method attaches the models together so they are attached.
 - base_name: the name of the table we will be attaching to
 - attach_name: the name of the table that will be attached
 - base_on: put a proc here to override the matching key for the base table. Default is, for a user and post type, {|user| user.id}
