@@ -40,18 +40,19 @@ These are methods written for easier sql usage.
 
 #### self.dynamic_sql(name, sql, opts = { })
 A better and safer way to write sql. Can return either a Hash, ActiveRecord::Response object, or an instantiated model.
+
 with options: 
-- instantiate_class: returns User, Post, etc objects instead of straight sql output.
-    I prefer doing the alterantive
-        ```User.dynamic_sql(...)```
-        which is also supported
-- prepare: sets whether the db will preprocess the strategy for lookup (defaults true) (have not verified the prepared-ness)
+- options not stated below: considered sql arguments, and will replace their ":option_name" with a sql argument. Always use sql arguments to avoid sql injection. Lists are converted into a format such as ```{1,2,3,4}```. Lists of lists are converted into ```(1,2,3), (4,5,6), (7,8,9)``` etc. So as to allow easy inserts/upserts.
+- raw: whether to return a ActiveRecord::Response object or a hash when called on an abstract class (like ApplicationRecord). Default can be switched with DYNAMIC_SQL_RAW variable on the class level.
+- instantiate_class: determines what format to return. Can return ActiveRecord objects (User, Post, etc), or whatever raw is set to. I prefer doing the alterantive ```User.dynamic_sql(...)``` which is also supported. For example, ```User.dynamic_sql(...)``` will return User records. ```ApplicationRecord.dynamic_sql(..., raw: false)``` will return a List of Hashes with the column names as keys. ```ApplicationRecord.dynamic_sql(..., raw: true)``` will return an ActiveRecord::Response.
+
+other options:
+
+- prepare: Defaults to true. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. Should change whether the command will be prepared, which means that on subsequent calls the command will be faster. Downsides are when, for example, the sql query has hard-coded arguments, the query always changes, causing technical issues as the number of prepared statements stack up.
 - name_modifiers: allows one to change the associated name dynamically.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
-    this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements.
-- async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
-- raw: whether to return a ActiveRecord::Response object or a hash when called on an abstract class (ApplicationRecord vs User)
-- other options: considered sql arguments
+    this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements. Not super useful.
+- async: Defaults to false. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
 	
 <details>
 <summary>example usage</summary>
