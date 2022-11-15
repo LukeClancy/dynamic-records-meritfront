@@ -277,6 +277,9 @@ the output:
 
 ```
 </details>
+	
+### self.instaload(sql, table_name: nil, relied_on: false)
+Used in dynamic_instaload_sql, and formats information for that method. 
 
 #### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
 taking the output of the dynamic_instaload_sql, this method attaches the models together so they have relations.
