@@ -81,7 +81,7 @@ A better and safer way to write sql. Can return either a Hash, ActiveRecord::Res
 with options: 
 - instantiate_class: returns User, Post, etc objects instead of straight sql output.
     I prefer doing the alterantive
-        ```User.headache_sql(...)```
+        ```User.dynamic_sql(...)```
         which is also supported
 - prepare: sets whether the db will preprocess the strategy for lookup (defaults true) (have not verified the prepared-ness)
 - name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
@@ -150,7 +150,7 @@ Get users who match a list of ids. Uses a postgresql Array, see the potential is
 
 ```ruby
 	id_list = [1,2,3]
-	return User.headache_sql('get_usrs', %Q{
+	return User.dynamic_sql('get_usrs', %Q{
 		SELECT * FROM users WHERE id = ANY (:id_list)
 	}, id_list: id_list)
 ```
@@ -175,7 +175,7 @@ Do an upsert
 		DO UPDATE SET updated_at = :time
 	}, rows: rows, time: t)
 ```
-This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as headache_sql detected that we were sending duplicate information.
+This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as dynamic_sql detected that we were sending duplicate information.
 ```sql
 	INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
 	VALUES ($1,$2,$3,$4,$4)
@@ -187,14 +187,14 @@ This will output sql similar to below. Note this can be done for multiple conver
 	
 
 #### self.dynamic_preload(records, associations)
-Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation). This is basically the same as a normal relation preload but it works on a list. 
+Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above dynamic_sql method (as it returns a list of records, and not a record relation). This is basically the same as a normal relation preload but it works on a list. 
 
 <details>
 <summary>example usage</summary>
 Preload :votes on some comments. :votes is an active record has_many relation.
 
 ```ruby
-    comments = Comment.headache_sql('get_comments', %Q{
+    comments = Comment.dynamic_sql('get_comments', %Q{
         SELECT * FROM comments LIMIT 4
     })
     comments.class.to_s # 'Array' note: not a relation.
