@@ -46,7 +46,7 @@ with options:
         ```User.dynamic_sql(...)```
         which is also supported
 - prepare: sets whether the db will preprocess the strategy for lookup (defaults true) (have not verified the prepared-ness)
-- name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
+- name_modifiers: allows one to change the associated name dynamically.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements.
 - async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
