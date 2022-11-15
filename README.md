@@ -38,44 +38,6 @@ end
 
 These are methods written for easier sql usage.
 
-#### has_run_migration?(nm)
-
-put in a string name of the migration's class and it will say if it has allready run the migration.
-good during enum migrations as the code to migrate wont run if enumerate is there 
-as it is not yet enumerated (causing an error when it loads the class that will have the
-enumeration in it). This can lead it to being impossible to commit clean code.
-
-<details><summary>example usage</summary>
-only load relationa if it exists in the database
-
-```ruby
-if ApplicationRecord.has_run_migration?('UserImageRelationsTwo')
-    class UserImageRelation < ApplicationRecord
-        belongs_to :imageable, polymorphic: true
-        belongs_to :image
-    end
-else
-    class UserImageRelation; end
-end
-
-```
-</details>
-
-#### has_association?(*args)
-
-accepts a list, checks if the model contains those associations
-
-<details><summary>example usage</summary>
-Check if object is a votable class
-
-```ruby
-obj = Comment.first
-obj.has_association?(:votes) #true
-obj = User.first
-obj.has_association?(:votes) #false
-```
-</details>
-
 #### self.dynamic_sql(name, sql, opts = { })
 A better and safer way to write sql. Can return either a Hash, ActiveRecord::Response object, or an instantiated model.
 with options: 
@@ -205,7 +167,45 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     user.comments.preload(:votes)
 ```
 </details>
-	
+
+#### has_run_migration?(nm)
+
+put in a string name of the migration's class and it will say if it has allready run the migration.
+good during enum migrations as the code to migrate wont run if enumerate is there 
+as it is not yet enumerated (causing an error when it loads the class that will have the
+enumeration in it). This can lead it to being impossible to commit clean code.
+
+<details><summary>example usage</summary>
+only load relationa if it exists in the database
+
+```ruby
+if ApplicationRecord.has_run_migration?('UserImageRelationsTwo')
+    class UserImageRelation < ApplicationRecord
+        belongs_to :imageable, polymorphic: true
+        belongs_to :image
+    end
+else
+    class UserImageRelation; end
+end
+
+```
+</details>
+
+#### has_association?(*args)
+
+accepts a list, checks if the model contains those associations
+
+<details><summary>example usage</summary>
+Check if object is a votable class
+
+```ruby
+obj = Comment.first
+obj.has_association?(:votes) #true
+obj = User.first
+obj.has_association?(:votes) #false
+```
+</details>
+
 #### self.dynamic_instaload_sql(name, insta_array, opts = { })
 *instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
