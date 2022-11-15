@@ -88,7 +88,7 @@ with options:
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements.
 - async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
-- raw: whether to return a ActiveRecord::Response object or a hash
+- raw: whether to return a ActiveRecord::Response object or a hash when called on an abstract class (ApplicationRecord vs User)
 - other options: considered sql arguments
 	
 <details>
