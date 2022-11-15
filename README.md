@@ -210,7 +210,7 @@ Preload :votes on some comments. :votes is an active record has_many relation.
 *instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
 - opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
-- insta-array is an array of instaload method outputs. See examples for more.
+- requires a list of instaload method output which provides information for how to treat each request.
 	
 <details>
 <summary>example usage</summary>
