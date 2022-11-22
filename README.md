@@ -209,7 +209,7 @@ obj.has_association?(:votes) #false
 </details>
 
 #### self.dynamic_instaload_sql(name, insta_array, opts = { })
-*instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Seems to be more efficient to preloading when i tested it.
+*instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Maybe a bit overcomplicated. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
 - opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
 - requires a list of instaload method output which provides information for how to treat each sql block.
