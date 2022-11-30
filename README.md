@@ -13,7 +13,7 @@ users = ApplicationRecord.dynamic_sql('select * from users limit :limit', limit:
 users = User.dynamic_sql('select * from users limit :limit', limit: 5) 	#returns a list of users (each an instance of User)
 
 uhgid = users.first.hgid						#returns a hashed global id like: 'gid://appname/User/K9YI4K'
-user = User.locate_hgid(uhgid)						#returns User
+user = User.locate_hgid(uhgid)						#returns that user
 ```
 
 ## Installation
