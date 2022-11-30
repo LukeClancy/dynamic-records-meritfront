@@ -2,7 +2,7 @@
 
 Dyanmic Records Meritfront helps extend active record functionality to make it more dynamic. These methods have the goal of allowing one to
 1. communicate with the frontend quicker and more effectively through Global HashIds
-2. communicate with the backend more effectively with raw sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have a page-long dynamic sql query.
+2. communicate with the backend more effectively with sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have dynamic sql queries that are hard to convert properly into ruby.
 3. add other helper methods to work with your database, such as checking if relations exist, or if a migration has been run.
 
 Note that postgres is currently a requirement for this gem.
