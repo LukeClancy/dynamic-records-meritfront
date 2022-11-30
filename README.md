@@ -206,7 +206,7 @@ end
 
 #### has_association?(*args)
 
-accepts a list, checks if the model contains those associations
+accepts a list of association names, checks if the model has those associations
 
 <details><summary>example usage</summary>
 Check if object is a votable class
