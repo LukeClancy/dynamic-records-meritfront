@@ -7,6 +7,15 @@ Dyanmic Records Meritfront helps extend active record functionality to make it m
 
 Note that postgres is currently a requirement for this gem.
 
+## Basic Examples
+```ruby
+users = ApplicationRecord.dynamic_sql('select * from users limit :limit', limit: 5) # returns a json-like hash list of user data
+users = User.dynamic_sql('select * from users limit :limit', limit: 5) 	#returns a list of users with class User
+
+uhgid = users.first.hgid						#returns 'gid://meritfront/User/K9YI4K'
+user = User.locate_hgid(uhgid)						#returns user
+```
+
 ## Installation
 
 Add this line to your application's Gemfile:
