@@ -1,10 +1,33 @@
 # Dynamic Records Meritfront
 
-Dyanmic Records Meritfront contains some helpers methods for active record. These methods have the goal of allowing one to
+Dyanmic Records Meritfront helps extend active record functionality to make it more dynamic. These methods have the goal of allowing one to
 1. communicate with the frontend quicker and more effectively through Global HashIds
-2. communicate with the backend more effectively with raw sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have a page-long dynamic sql query.
+2. communicate with the backend more effectively with sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have dynamic sql queries that are hard to convert properly into ruby.
+3. add other helper methods to work with your database, such as checking if relations exist, or if a migration has been run.
 
-Note that postgres is a requirement for this gem. I dont tend to get much feedback, so any given would be appreciated.
+Note that postgres is currently a requirement for this gem.
+
+## Basic Examples
+```ruby
+# returns a json-like hash list of user data
+users = ApplicationRecord.dynamic_sql(
+	'get_5_users',
+	'select * from users limit :our_limit',
+	our_limit: 5
+)
+
+#returns a list of users (each an instance of User)
+users = User.dynamic_sql(
+	'get_users_from_ids',
+	'select * from users where id = ANY (:ids)',
+	ids: [1,2,3]
+)
+
+uhgid = users.first.hgid		#returns a hashed global id like: 'gid://appname/User/K9YI4K'
+user = User.locate_hgid(uhgid)		#returns that user
+
+#... and much more!
+```
 
 ## Installation
 
@@ -38,58 +61,21 @@ end
 
 These are methods written for easier sql usage.
 
-#### has_run_migration?(nm)
-
-put in a string name of the migration's class and it will say if it has allready run the migration.
-good during enum migrations as the code to migrate wont run if enumerate is there 
-as it is not yet enumerated (causing an error when it loads the class that will have the
-enumeration in it). This can lead it to being impossible to commit clean code.
-
-<details><summary>example usage</summary>
-only load relationa if it exists in the database
-
-```ruby
-if ApplicationRecord.has_run_migration?('UserImageRelationsTwo')
-    class UserImageRelation < ApplicationRecord
-        belongs_to :imageable, polymorphic: true
-        belongs_to :image
-    end
-else
-    class UserImageRelation; end
-end
-
-```
-</details>
-
-#### has_association?(*args)
-
-accepts a list, checks if the model contains those associations
-
-<details><summary>example usage</summary>
-Check if object is a votable class
-
-```ruby
-obj = Comment.first
-obj.has_association?(:votes) #true
-obj = User.first
-obj.has_association?(:votes) #false
-```
-</details>
-
 #### self.dynamic_sql(name, sql, opts = { })
 A better and safer way to write sql. Can return either a Hash, ActiveRecord::Response object, or an instantiated model.
+
 with options: 
-- instantiate_class: returns User, Post, etc objects instead of straight sql output.
-    I prefer doing the alterantive
-        ```User.headache_sql(...)```
-        which is also supported
-- prepare: sets whether the db will preprocess the strategy for lookup (defaults true) (have not verified the prepared-ness)
-- name_modifiers: allows one to change the preprocess associated name, useful in cases of dynamic sql.
+- options not stated below: considered sql arguments, and will replace their ":option_name" with a sql argument. Always use sql arguments to avoid sql injection. Lists are converted into a format such as ```{1,2,3,4}```. Lists of lists are converted into ```(1,2,3), (4,5,6), (7,8,9)``` etc. So as to allow easy inserts/upserts.
+- raw: whether to return a ActiveRecord::Response object or a hash when called on an abstract class (like ApplicationRecord). Default can be switched with DYNAMIC_SQL_RAW variable on the class level.
+- instantiate_class: determines what format to return. Can return ActiveRecord objects (User, Post, etc), or whatever raw is set to. I prefer doing the alterantive ```User.dynamic_sql(...)``` which is also supported. For example, ```User.dynamic_sql(...)``` will return User records. ```ApplicationRecord.dynamic_sql(..., raw: false)``` will return a List of Hashes with the column names as keys. ```ApplicationRecord.dynamic_sql(..., raw: true)``` will return an ActiveRecord::Response.
+
+other options:
+
+- prepare: Defaults to true. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. Should change whether the command will be prepared, which means that on subsequent calls the command will be faster. Downsides are when, for example, the sql query has hard-coded arguments, the query always changes, causing technical issues as the number of prepared statements stack up.
+- name_modifiers: allows one to change the associated name dynamically.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
-    this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements.
-- async: Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
-- raw: whether to return a ActiveRecord::Response object or a hash
-- other options: considered sql arguments
+    this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements. Not super useful.
+- async: Defaults to false. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
 	
 <details>
 <summary>example usage</summary>
@@ -150,7 +136,7 @@ Get users who match a list of ids. Uses a postgresql Array, see the potential is
 
 ```ruby
 	id_list = [1,2,3]
-	return User.headache_sql('get_usrs', %Q{
+	return User.dynamic_sql('get_usrs', %Q{
 		SELECT * FROM users WHERE id = ANY (:id_list)
 	}, id_list: id_list)
 ```
@@ -175,7 +161,7 @@ Do an upsert
 		DO UPDATE SET updated_at = :time
 	}, rows: rows, time: t)
 ```
-This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as headache_sql detected that we were sending duplicate information.
+This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as dynamic_sql detected that we were sending duplicate information.
 ```sql
 	INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
 	VALUES ($1,$2,$3,$4,$4)
@@ -187,16 +173,17 @@ This will output sql similar to below. Note this can be done for multiple conver
 	
 
 #### self.dynamic_preload(records, associations)
-Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above headache_sql method (as it returns a list of records, and not a record relation). This is basically the same as a normal relation preload but it works on a list. 
+Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above dynamic_sql method (as it returns a list of records, and not a record relation). This is basically the same as a normal relation preload but it works on a list. 
 
 <details>
 <summary>example usage</summary>
 Preload :votes on some comments. :votes is an active record has_many relation.
 
 ```ruby
-    comments = Comment.headache_sql('get_comments', %Q{
+    comments = Comment.dynamic_sql('get_comments', %Q{
         SELECT * FROM comments LIMIT 4
     })
+    comments.class.to_s # 'Array' note: not a relation.
     ApplicationRecord.headache_preload(comments, [:votes])
     puts comments[0].votes #this line should be preloaded and hence not call the database
 
@@ -204,12 +191,50 @@ Preload :votes on some comments. :votes is an active record has_many relation.
     user.comments.preload(:votes)
 ```
 </details>
-	
+
+#### has_run_migration?(nm)
+
+put in a string name of the migration's class and it will say if it has allready run the migration.
+good during enum migrations as the code to migrate wont run if enumerate is there 
+as it is not yet enumerated (causing an error when it loads the class that will have the
+enumeration in it). This can lead it to being impossible to commit clean code.
+
+<details><summary>example usage</summary>
+only load relationa if it exists in the database
+
+```ruby
+if ApplicationRecord.has_run_migration?('UserImageRelationsTwo')
+    class UserImageRelation < ApplicationRecord
+        belongs_to :imageable, polymorphic: true
+        belongs_to :image
+    end
+else
+    class UserImageRelation; end
+end
+
+```
+</details>
+
+#### has_association?(*args)
+
+accepts a list of association names, checks if the model has those associations
+
+<details><summary>example usage</summary>
+Check if object is a votable class
+
+```ruby
+obj = Comment.first
+obj.has_association?(:votes) #true
+obj = User.first
+obj.has_association?(:votes) #false
+```
+</details>
+
 #### self.dynamic_instaload_sql(name, insta_array, opts = { })
-*instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Seems to be more efficient to preloading when i tested it.
+*instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Maybe a bit overcomplicated. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
 - opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
-- insta-array is an array of instaload method outputs. See examples for more.
+- requires a list of instaload method output which provides information for how to treat each sql block.
 	
 <details>
 <summary>example usage</summary>
@@ -276,9 +301,12 @@ the output:
 
 ```
 </details>
+	
+#### self.instaload(sql, table_name: nil, relied_on: false)
+Used in dynamic_instaload_sql, and formats information for that method. 
 
 #### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
-taking the output of the dynamic_instaload_sql, this method attaches the models together so they have relations.
+taking the output of the dynamic_instaload_sql, this method attaches the models together so they are attached.
 - base_name: the name of the table we will be attaching to
 - attach_name: the name of the table that will be attached
 - base_on: put a proc here to override the matching key for the base table. Default is, for a user and post type, {|user| user.id}
@@ -337,7 +365,8 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 ## Potential Issues
 
-This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods. I dont have the bandwidth to help switch it elsewhere.
+- This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods if you do not. I dont have the bandwidth to help switch it elsewhere, but if you want to take charge of that, I would be more than happy to assist by answering questions an pointing out any areas that need transitioning.
+- If you return a password column (for example) as pwd, this gem will accept that. That would mean that the password could me accessed as model.pwd. This is cool - until all passwords are getting logged in production servers. So be wary of accessing, storing, and logging of sensative information. Active Record has in built solutions for this type of data, as long as you dont change the column name. This gem is a sharp knife, its very versitile, but its also, you know, sharp.
 	
 ## Changelog
 	
@@ -362,9 +391,12 @@ This gem was made with a postgresql database. This could cause a lot of issues w
 - changed model.dynamic attribute to an OpenStruct class which just makes it easier to work with
 - changed dynamic_attach so that it now uses the model.dynamic attribute, instead of using singleton classes. This is better practice, and also contains all the moving parts of this gem in one place.
 - added the dynamic_print method to easier see the objects one is working with.
-
+2.0.21
+- figured out how to add to a model's @attributes, so .dynamic OpenStruct no longer needed, no longer need dynamic_print, singletons are out aswell. unexpected columns for are now usable as just regular attributes.
+- overrode inspect to show the dynamic attributes aswell, warning about passwords printed to logs etc.
 2.0.22
-- added error logging in dynamic_sql method for the sql query when and if that fails
+- added error logging in dynamic_sql method for the sql query when and if that fails. So just look at log file to see exactly what sql was running and what the args are.
+- 
 
 ## Contributing
 
