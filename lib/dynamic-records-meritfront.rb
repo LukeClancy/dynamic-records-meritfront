@@ -337,55 +337,70 @@ module DynamicRecordsMeritfront
 			for mod in name_modifiers
 				name << "_#{mod.to_s}" unless mod.nil?
 			end
-
-			unless multi_query
-				#https://stackoverflow.com/questions/49947990/can-i-execute-a-raw-sql-query-leverage-prepared-statements-and-not-use-activer/67442353#67442353
-				#change the keys to $1, $2 etc. this step is needed for ex. {id: 1, id_user: 2}.
-				#doing the longer ones first prevents id replacing :id_user -> 1_user
-				keys = params.keys.sort{|a,b| b.to_s.length <=> a.to_s.length}
-				sql_vals = []
-				x = 1
-				for key in keys
-					#replace the key with $1, $2 etc
-					v = params[key]
-
-					#this is where we guess what it is
-					looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
-
-					if v.class == MultiRowExpression or looks_like_multi_attribute_array
-					#it looks like or is a multi-row expression (like those in an insert statement)
-						v = MultiRowExpression.new(v) if looks_like_multi_attribute_array
-						#process into usable information
-						sql_for_replace, mat_vars, new_x = v.for_query(x, unique_value_hash: unique_value_hash)
-						#replace the key with the sql
-						if sql.gsub!(":#{key}", sql_for_replace) != nil
-						#if successful set the new x number and append variables to our sql variables
-							x = new_x
-							name_num = 0
-							mat_vars.each{|mat_var|
-								name_num += 1
-								sql_vals << convert_to_query_attribute("#{key}_#{name_num}", mat_var)
-							}
-						end
-					else
-						prexist_arg_num = unique_value_hash[v]
-						if prexist_arg_num
-							sql.gsub!(":#{key}", "$#{prexist_arg_num}")
+			begin
+				unless multi_query
+					#https://stackoverflow.com/questions/49947990/can-i-execute-a-raw-sql-query-leverage-prepared-statements-and-not-use-activer/67442353#67442353
+					#change the keys to $1, $2 etc. this step is needed for ex. {id: 1, id_user: 2}.
+					#doing the longer ones first prevents id replacing :id_user -> 1_user
+					keys = params.keys.sort{|a,b| b.to_s.length <=> a.to_s.length}
+					sql_vals = []
+					x = 1
+					for key in keys
+						#replace the key with $1, $2 etc
+						v = params[key]
+	
+						#this is where we guess what it is
+						looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
+	
+						if v.class == MultiRowExpression or looks_like_multi_attribute_array
+						#it looks like or is a multi-row expression (like those in an insert statement)
+							v = MultiRowExpression.new(v) if looks_like_multi_attribute_array
+							#process into usable information
+							sql_for_replace, mat_vars, new_x = v.for_query(x, unique_value_hash: unique_value_hash)
+							#replace the key with the sql
+							if sql.gsub!(":#{key}", sql_for_replace) != nil
+							#if successful set the new x number and append variables to our sql variables
+								x = new_x
+								name_num = 0
+								mat_vars.each{|mat_var|
+									name_num += 1
+									sql_vals << convert_to_query_attribute("#{key}_#{name_num}", mat_var)
+								}
+							end
 						else
-							if sql.gsub!(":#{key}", "$#{x}") == nil
-								#nothing changed, param not used, delete it
-								params.delete key
+							prexist_arg_num = unique_value_hash[v]
+							if prexist_arg_num
+								sql.gsub!(":#{key}", "$#{prexist_arg_num}")
 							else
-								unique_value_hash[v] = x
-								sql_vals << convert_to_query_attribute(key, v)
-								x += 1
+								if sql.gsub!(":#{key}", "$#{x}") == nil
+									#nothing changed, param not used, delete it
+									params.delete key
+								else
+									unique_value_hash[v] = x
+									sql_vals << convert_to_query_attribute(key, v)
+									x += 1
+								end
 							end
 						end
 					end
+					ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
+				else
+					ret = ActiveRecord::Base.connection.execute sql, name
 				end
-				ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
-			else
-				ret = ActiveRecord::Base.connection.execute sql, name
+			rescue Exception => e
+				name ||= ''
+				sql ||= ''
+				sql_vars ||= ''
+				prepare ||= ''
+				async ||= ''
+				Rails.logger.error(%Q{
+DynamicRecords#dynamic_sql debug info. Some may be empty.
+name: #{name}
+sql: #{sql}
+sql_vars: #{sql_vars}
+prepare: #{prepare}
+async: #{async}})
+raise e
 			end
 
 			#this returns a PG::Result object, which is pretty basic. To make this into User/Post/etc objects we do
@@ -438,6 +453,11 @@ module DynamicRecordsMeritfront
 			}.join(" UNION ALL \n")
 			#{ other_statements.map{|os| "SELECT row_to_json(#{os[:table_name]}.*) AS row, '#{os[:klass]}' AS _klass FROM (\n#{os[:sql]}\n)) AS #{os[:table_name]}\n" }.join(' UNION ALL ')}
 		end
+
+		
+
+
+
 
 		def dynamic_instaload_sql(name, insta_array, opts = { })
 			with_statements = insta_array.select{|a| a[:relied_on]}

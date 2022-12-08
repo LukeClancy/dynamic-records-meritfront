@@ -363,6 +363,9 @@ This gem was made with a postgresql database. This could cause a lot of issues w
 - changed dynamic_attach so that it now uses the model.dynamic attribute, instead of using singleton classes. This is better practice, and also contains all the moving parts of this gem in one place.
 - added the dynamic_print method to easier see the objects one is working with.
 
+2.0.22
+- added error logging in dynamic_sql method for the sql query when and if that fails
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/LukeClancy/dynamic-records-meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
