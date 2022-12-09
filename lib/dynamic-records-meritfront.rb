@@ -144,7 +144,7 @@ module DynamicRecordsMeritfront
                         k = "#{key}_#{x}"
                         x = var_track.add_key_value(k, attribute)
                     end
-                    next "$" + x
+                    next "$" + x.to_s
 				}.join(",")
 			})"}.join(",")
 			return db_val
