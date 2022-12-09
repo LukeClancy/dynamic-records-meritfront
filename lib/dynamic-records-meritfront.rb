@@ -33,7 +33,7 @@ module DynamicRecordsMeritfront
             value = params[key] if value.nil?
             #tracks the variable and returns the keys sql variable number
             sql_hash[key] ||= convert_to_query_attribute(key, value)
-            return sql_hash.keys.index(:key) + 1
+            return sql_hash.keys.index(key) + 1
         end
 
         def x
