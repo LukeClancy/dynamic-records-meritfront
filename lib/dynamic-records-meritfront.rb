@@ -141,7 +141,7 @@ module DynamicRecordsMeritfront
                         #allow pointers to other more explicit variables through symbols
                         x = var_track.add_key_value(attribute, nil)
                     else
-                        k = "#{key}_#{x}"
+                        k = "#{key}_#{var_track.next_sql_num.to_s}"
                         x = var_track.add_key_value(k, attribute)
                     end
                     next "$" + x.to_s
