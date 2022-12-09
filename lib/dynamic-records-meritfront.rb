@@ -18,7 +18,6 @@ module DynamicRecordsMeritfront
 		#should work, probably able to override by redefining in ApplicationRecord class.
 		#Note we defined here as it breaks early on as Rails.application returns nil
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
-		DYNAMIC_SQL_RAW = true
 	end
 
     class DynamicSqlVariables
