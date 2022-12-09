@@ -36,7 +36,7 @@ module DynamicRecordsMeritfront
             return sql_hash.keys.index(key) + 1
         end
 
-        def x
+        def next_sql_num
             #gets the next sql variable number
             sql_hash.keys.length + 1
         end
@@ -403,6 +403,7 @@ module DynamicRecordsMeritfront
                             #replace the key with the sql
                             sql.gsub!(":#{key}", sql_for_replace)
                         else
+                            x = var_track.next_sql_num
                             if sql.gsub!(":#{key}", "$#{x}")
                                 var_track.add_key_value(key, v)
                             end
