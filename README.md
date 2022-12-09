@@ -414,12 +414,30 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 - changed model.dynamic attribute to an OpenStruct class which just makes it easier to work with
 - changed dynamic_attach so that it now uses the model.dynamic attribute, instead of using singleton classes. This is better practice, and also contains all the moving parts of this gem in one place.
 - added the dynamic_print method to easier see the objects one is working with.
+
 2.0.21
 - figured out how to add to a model's @attributes, so .dynamic OpenStruct no longer needed, no longer need dynamic_print, singletons are out aswell. unexpected columns are now usable as just regular attributes.
 - overrode inspect to show the dynamic attributes aswell, warning about passwords printed to logs etc.
+
 2.0.24
 - added error logging in dynamic_sql method for the sql query when and if that fails. So just look at log file to see exactly what sql was running and what the args are.
 - added a dont_return option to the instaload method which works with the relied_on option to have a normal WITH statement that is not returned.
+
+3.0.1
+- Previous versions will break when two sql attributes unexpectantly share the same value. Yeah my bad, was trying to be fancy and decrease sql argument count.
+- People using symbols as sql values (and expecting them to be turned to strings) may have breakages. (aka a sql option like "insert_list: [[:a, 1], [:b, 2]]" will break)
+- Went to new version due to 1. a large functionality improvement, 2. the fact that previous versions are broken as explained above.
+- more on breaking error
+  - got this error: ActiveRecord::StatementInvalid (PG::ProtocolViolation: ERROR:  bind message supplies 3 parameters, but prepared statement "a27" requires 4)
+  - this tells me that names are not actually required to be unique for prepared statement identification, which was a bad assumption on my part
+  - this also tells me that uniq'ing variables to decrease the number of them was a bad idea which could cause random failures.
+- functionality improvements
+  - The biggest change is that names are now optional! name_modifiers is now depreciated functionality as it serves no useful purpose. Will leave in for compatibility but take out of documentation. Used to think the name was related to prepared statements. This will lead simpler ruby code.
+  - If name is left out, the name will be set to the location in your app which called the method. For example, when dynamic_sql was called from irb, the name was: "(irb):45:in `irb_binding'". This is done using stack trace functionality.
+  - dynamic_instaload_sql is now just instaload_sql. dynamic_instaload_sql has been aliased.
+  - Name is optional on instaload_sql aswell
+  - MultiAttributeArrays (array's of arrays) which can be passed into dynamic_sql largely for inserts/upserts will now treat symbols as an attribute name. This leads to more consise sql without running into above error.
+  - When dynamic_sql errors out, it now posts some helpful information to the log.
 
 ## Contributing
 

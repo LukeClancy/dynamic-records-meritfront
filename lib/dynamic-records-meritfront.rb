@@ -45,6 +45,40 @@ module DynamicRecordsMeritfront
             sql_hash.values
         end
 
+        #thank god for some stack overflow people are pretty awesome https://stackoverflow.com/questions/64894375/executing-a-raw-sql-query-in-rails-with-an-array-parameter-against-postgresql
+		#BigIntArray = ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(ActiveModel::Type::BigInteger.new).freeze
+		#IntegerArray = ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(ActiveModel::Type::Integer.new).freeze
+
+		#https://api.rubyonrails.org/files/activemodel/lib/active_model/type_rb.html
+		# active_model/type/helpers
+		# active_model/type/value
+		# active_model/type/big_integer
+		# active_model/type/binary
+		# active_model/type/boolean
+		# active_model/type/date
+		# active_model/type/date_time
+		# active_model/type/decimal
+		# active_model/type/float
+		# active_model/type/immutable_string
+		# active_model/type/integer
+		# active_model/type/string
+		# active_model/type/time
+		# active_model
+
+		DB_TYPE_MAPS = {
+			String => ActiveModel::Type::String,
+			Symbol => ActiveModel::Type::String,
+			Integer => ActiveModel::Type::BigInteger,
+			BigDecimal => ActiveRecord::Type::Decimal,
+			TrueClass => ActiveModel::Type::Boolean,
+			FalseClass => ActiveModel::Type::Boolean,
+			Date => ActiveModel::Type::Date,
+			DateTime => ActiveModel::Type::DateTime,
+			Time => ActiveModel::Type::Time,
+			Float => ActiveModel::Type::Float,
+			Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) }
+		}
+
         def convert_to_query_attribute(name, v)
             #yes its dumb I know dont look at me look at rails
 
@@ -282,40 +316,6 @@ module DynamicRecordsMeritfront
 			end
 		end
 
-		#thank god for some stack overflow people are pretty awesome https://stackoverflow.com/questions/64894375/executing-a-raw-sql-query-in-rails-with-an-array-parameter-against-postgresql
-		#BigIntArray = ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(ActiveModel::Type::BigInteger.new).freeze
-		#IntegerArray = ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(ActiveModel::Type::Integer.new).freeze
-
-		#https://api.rubyonrails.org/files/activemodel/lib/active_model/type_rb.html
-		# active_model/type/helpers
-		# active_model/type/value
-		# active_model/type/big_integer
-		# active_model/type/binary
-		# active_model/type/boolean
-		# active_model/type/date
-		# active_model/type/date_time
-		# active_model/type/decimal
-		# active_model/type/float
-		# active_model/type/immutable_string
-		# active_model/type/integer
-		# active_model/type/string
-		# active_model/type/time
-		# active_model
-
-		DB_TYPE_MAPS = {
-			String => ActiveModel::Type::String,
-			Symbol => ActiveModel::Type::String,
-			Integer => ActiveModel::Type::BigInteger,
-			BigDecimal => ActiveRecord::Type::Decimal,
-			TrueClass => ActiveModel::Type::Boolean,
-			FalseClass => ActiveModel::Type::Boolean,
-			Date => ActiveModel::Type::Date,
-			DateTime => ActiveModel::Type::DateTime,
-			Time => ActiveModel::Type::Time,
-			Float => ActiveModel::Type::Float,
-			Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) }
-		}
-
 		#allows us to preload on a list and not a active record relation. So basically from the output of headache_sql
 		def dynamic_preload(records, associations)
 			ActiveRecord::Associations::Preloader.new(records: records, associations: associations).call
@@ -323,10 +323,11 @@ module DynamicRecordsMeritfront
 
 		alias headache_preload dynamic_preload
 		
-		def dynamic_sql(*args) #see below for opts
+        def dynamic_sql(*args) #see below for opts
         # call like: dynamic_sql(name, sql, option_1: 1, option_2: 2)
         #   or like: dynamic_sql(sql, {option: 1, option_2: 2})
         #   or like: dynamic_sql(sql, option: 1, option_2: 2)
+        #	or just: dynamic_sql(sql)
         #
         # Options: (options not listed will be sql arguments)
         # - instantiate_class - returns User, Post, etc objects instead of straight sql output.
@@ -342,29 +343,28 @@ module DynamicRecordsMeritfront
         # - raw switches between using a Hash or a ActiveRecord::Response object when used on a abstract class
             args << {} unless args[-1].kind_of? Hash
             if args.length == 3
-                name, sql, options = args
+                name, sql, opts = args
             elsif args.length == 2
-                sql, options = args
+                sql, opts = args
                 #give default name functionality as a pointer to source code location
                 #of the method that called this. Love ruby. Meta up the a$$
                 first_app_stack_trace = caller[0...3].select{|str| not str.include?('dynamic_records_meritfront.rb')}.first
-                shorter_source_loc = first_app_stack_trace[0].split('/')[-1]
+                shorter_source_loc = first_app_stack_trace.split('/')[-1]
                 name = shorter_source_loc
             else
                 raise StandardError.new("bad input to DynamicRecordsMeritfront#dynamic_sql method.")
             end
 
-
-			#grab options from the opts hash
-			instantiate_class = opts.delete(:instantiate_class)
-			name_modifiers = opts.delete(:name_modifiers)
-			raw = opts.delete(:raw)
-			raw = DYNAMIC_SQL_RAW if raw.nil?
-			name_modifiers ||= []
-			prepare = opts.delete(:prepare) != false
-			multi_query = opts.delete(:multi_query) == true
-			async = opts.delete(:async) == true
-			params = opts
+            #grab options from the opts hash
+            instantiate_class = opts.delete(:instantiate_class)
+            name_modifiers = opts.delete(:name_modifiers)
+            raw = opts.delete(:raw)
+            raw = DYNAMIC_SQL_RAW if raw.nil?
+            name_modifiers ||= []
+            prepare = opts.delete(:prepare) != false
+            multi_query = opts.delete(:multi_query) == true
+            async = opts.delete(:async) == true
+            params = opts
 
                 #unique value hash cuts down on the number of repeated arguments like in an update or insert statement
                 #by checking if there is an equal existing argument and then using that argument number instead.
@@ -377,24 +377,24 @@ module DynamicRecordsMeritfront
                 #   2. Need to get rid of the unique variable name functionality which uniques all the variables
                 #       to decrease the amount sent to database
 
-			#name_modifiers are super unnecessary now I realize the given name is not actually related
+            #name_modifiers are super unnecessary now I realize the given name is not actually related
             #to prepped statements. But will keep it as it is backwards compatitable and sorta useful maybe.
             for mod in name_modifiers
                 name << "_#{mod.to_s}" unless mod.nil?
             end
-			begin
+            begin
                 var_track = DynamicSqlVariables.new(params)
-				unless multi_query
-					#https://stackoverflow.com/questions/49947990/can-i-execute-a-raw-sql-query-leverage-prepared-statements-and-not-use-activer/67442353#67442353
-					#change the keys to $1, $2 etc. this step is needed for ex. {id: 1, id_user: 2}.
-					#doing the longer ones first prevents id replacing :id_user -> $1_user
-					keys = params.keys.sort{|a,b| b.to_s.length <=> a.to_s.length}
+                unless multi_query
+                    #https://stackoverflow.com/questions/49947990/can-i-execute-a-raw-sql-query-leverage-prepared-statements-and-not-use-activer/67442353#67442353
+                    #change the keys to $1, $2 etc. this step is needed for ex. {id: 1, id_user: 2}.
+                    #doing the longer ones first prevents id replacing :id_user -> $1_user
+                    keys = params.keys.sort{|a,b| b.to_s.length <=> a.to_s.length}
 
                     for key in keys
                         #replace MultiRowExpressions
-						v = params[key]
+                        v = params[key]
                         #check if it looks like one
-						looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
+                        looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
                         if v.class == MultiRowExpression or looks_like_multi_attribute_array
                         #we need to substitute with the correct sql now.
                             v = MultiRowExpression.new(v) if looks_like_multi_attribute_array #standardize
@@ -409,48 +409,49 @@ module DynamicRecordsMeritfront
                         end
                     end
                     sql_vals = var_track.get_array_for_exec_query
-					ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
-				else
-					ret = ActiveRecord::Base.connection.execute sql, name
-				end
-			rescue Exception => e
-				#its ok if some of these are empty, just dont want the error
+                    ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
+                else
+                    ret = ActiveRecord::Base.connection.execute sql, name
+                end
+            rescue Exception => e
+                #its ok if some of these are empty, just dont want the error
                 name ||= ''
-				sql ||= ''
-				sql_vals ||= ''
-				prepare ||= ''
-				async ||= ''
-				Rails.logger.error(%Q{
-DynamicRecords#dynamic_sql debug info.
-name: #{name.to_s}
-sql: #{sql.to_s}
-sql_vals: #{sql_vals.to_s}
-prepare: #{prepare.to_s}
-async: #{async.to_s}})
+                sql ||= ''
+                sql_vals ||= ''
+                prepare ||= ''
+                async ||= ''
+                Rails.logger.error(%Q{
+    DynamicRecords#dynamic_sql debug info.
+    name: #{name.to_s}
+    sql: #{sql.to_s}
+    sql_vals: #{sql_vals.to_s}
+    prepare: #{prepare.to_s}
+    async: #{async.to_s}
+    })
                 raise e
-			end
+            end
 
-			#this returns a PG::Result object, which is pretty basic. To make this into User/Post/etc objects we do
-					#the following
-			if instantiate_class or not self.abstract_class
-				instantiate_class = self if not instantiate_class
-				#no I am not actually this cool see https://stackoverflow.com/questions/30826015/convert-pgresult-to-an-active-record-model
-				ret = zip_ar_result(ret)
-				return ret.map{|r| dynamic_init(instantiate_class, r)}
-				# fields = ret.columns
-				# vals = ret.rows
-				# ret = vals.map { |v|
-				# 	dynamic_init()
-				# 	instantiate_class.instantiate(Hash[fields.zip(v)])
-				# }
-			else
-				if raw
-					return ret
-				else
-					return zip_ar_result(ret)
-				end
-			end
-		end
+            #this returns a PG::Result object, which is pretty basic. To make this into User/Post/etc objects we do
+                    #the following
+            if instantiate_class or not self.abstract_class
+                instantiate_class = self if not instantiate_class
+                #no I am not actually this cool see https://stackoverflow.com/questions/30826015/convert-pgresult-to-an-active-record-model
+                ret = zip_ar_result(ret)
+                return ret.map{|r| dynamic_init(instantiate_class, r)}
+                # fields = ret.columns
+                # vals = ret.rows
+                # ret = vals.map { |v|
+                # 	dynamic_init()
+                # 	instantiate_class.instantiate(Hash[fields.zip(v)])
+                # }
+            else
+                if raw
+                    return ret
+                else
+                    return zip_ar_result(ret)
+                end
+            end
+        end
 		alias headache_sql dynamic_sql
 		
 		def instaload(sql, table_name: nil, relied_on: false)
@@ -469,13 +470,23 @@ async: #{async.to_s}})
 		end
 
         def instaload(sql, table_name: nil, relied_on: false, dont_return: false)
-			table_name ||= "_" + self.to_s.underscore.downcase.pluralize
-			klass = self.to_s
-			sql = "\t" + sql.strip
-			return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return}
-		end
+            table_name ||= "_" + self.to_s.underscore.downcase.pluralize
+            klass = self.to_s
+            sql = "\t" + sql.strip
+            return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return}
+        end
 
-		def dynamic_instaload_sql(name, insta_array, opts = { })
+		def instaload_sql(*args) #name, insta_array, opts = { })
+            args << {} unless args[-1].kind_of? Hash
+            if args.length == 3
+                name, insta_array, opts = args
+            elsif args.length == 2
+                insta_array, opts = args
+                name = nil
+            else
+                raise StandardError.new("bad input to DynamicRecordsMeritfront#instaload_sql method.")
+            end
+
 			with_statements = insta_array.select{|a| a[:relied_on]}
 			sql = %Q{
 #{ _dynamic_instaload_handle_with_statements(with_statements) if with_statements.any? }
@@ -494,7 +505,8 @@ async: #{async.to_s}})
 			}
 			return ret_hash
 		end
-		alias swiss_instaload_sql dynamic_instaload_sql
+		alias swiss_instaload_sql instaload_sql
+        alias dynamic_instaload_sql instaload_sql
 
 		
 
