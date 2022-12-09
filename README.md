@@ -302,8 +302,31 @@ the output:
 ```
 </details>
 	
-#### self.instaload(sql, table_name: nil, relied_on: false)
-Used in dynamic_instaload_sql, and formats information for that method. 
+#### self.instaload(sql, table_name: nil, relied_on: false, dont_return: false)
+A method used to prepare data for the dynamic_instaload_sql method. It returns a hash of options.
+- klass called on: if called on an abstract class (ApplicationRecord) it will return a list of hashes with the data. Otherwise returns a list of the classes records.
+- table_name: sets the name of the temporary postgresql table. This can then be used in further instaload sql snippets.
+- relied_on: will make it so other instaload sql snippets can reference this table (it makes it use posrgresql's WITH operator)
+- dont_return: when used with relied_on makes it so that this data is not returned to rails from the database.
+
+note that the order of the instaload methods matter depending on how they reference eachother.
+<details>
+<summary> format data </summary>
+
+```ruby
+
+User.instaload('SELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.created_at > :time', table_name: 'limited_users', relied_on: true)
+#output:
+{
+    table_name: "limited_users",
+    klass: "User",
+    sql: "\tSELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.created_at > :time",
+    relied_on: true,
+    dont_return: false
+}
+
+```
+</details>
 
 #### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
 taking the output of the dynamic_instaload_sql, this method attaches the models together so they are attached.
@@ -392,11 +415,11 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 - changed dynamic_attach so that it now uses the model.dynamic attribute, instead of using singleton classes. This is better practice, and also contains all the moving parts of this gem in one place.
 - added the dynamic_print method to easier see the objects one is working with.
 2.0.21
-- figured out how to add to a model's @attributes, so .dynamic OpenStruct no longer needed, no longer need dynamic_print, singletons are out aswell. unexpected columns for are now usable as just regular attributes.
+- figured out how to add to a model's @attributes, so .dynamic OpenStruct no longer needed, no longer need dynamic_print, singletons are out aswell. unexpected columns are now usable as just regular attributes.
 - overrode inspect to show the dynamic attributes aswell, warning about passwords printed to logs etc.
-2.0.22
+2.0.24
 - added error logging in dynamic_sql method for the sql query when and if that fails. So just look at log file to see exactly what sql was running and what the args are.
-- 
+- added a dont_return option to the instaload method which works with the relied_on option to have a normal WITH statement that is not returned.
 
 ## Contributing
 
