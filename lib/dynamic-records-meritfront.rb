@@ -11,7 +11,6 @@ module DynamicRecordsMeritfront
 	module Hashid::Rails::ClassMethods
 		alias hfind find_by_hashid
 	end
-
 	included do
 		# include hash id gem
 		include Hashid::Rails
@@ -20,7 +19,6 @@ module DynamicRecordsMeritfront
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
         DYNAMIC_SQL_RAW = false
 	end
-
     class DynamicSqlVariables
         attr_accessor :sql_hash
         attr_accessor :params
@@ -454,13 +452,6 @@ module DynamicRecordsMeritfront
             end
         end
 		alias headache_sql dynamic_sql
-		
-		def instaload(sql, table_name: nil, relied_on: false)
-			table_name ||= "_" + self.to_s.underscore.downcase.pluralize
-			klass = self.to_s
-			sql = "\t" + sql.strip
-			return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on}
-		end
 
 		def _dynamic_instaload_handle_with_statements(with_statements)
 			%Q{WITH #{
@@ -468,6 +459,20 @@ module DynamicRecordsMeritfront
 		"#{ws[:table_name]} AS (\n#{ws[:sql]}\n)"
 	}.join(", \n")
 }}
+		end
+
+		def _dynamic_instaload_union(insta_array)
+			insta_array.map{|insta|
+                next if insta[:dont_return]
+				start = "SELECT row_to_json(#{insta[:table_name]}.*) AS row, '#{insta[:klass]}' AS _klass, '#{insta[:table_name]}' AS _table_name FROM "
+				if insta[:relied_on]
+					ending = "#{insta[:table_name]}\n"
+				else
+					ending = "(\n#{insta[:sql]}\n) AS #{insta[:table_name]}\n"
+				end
+				next start + ending
+			}.join(" UNION ALL \n")
+			#{ other_statements.map{|os| "SELECT row_to_json(#{os[:table_name]}.*) AS row, '#{os[:klass]}' AS _klass FROM (\n#{os[:sql]}\n)) AS #{os[:table_name]}\n" }.join(' UNION ALL ')}
 		end
 
         def instaload(sql, table_name: nil, relied_on: false, dont_return: false)
