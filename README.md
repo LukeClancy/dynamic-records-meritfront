@@ -425,7 +425,10 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 3.0.1
 - Previous versions will break when two sql attributes unexpectantly share the same value. Yeah my bad, was trying to be fancy and decrease sql argument count.
-- People using symbols as sql values (and expecting them to be turned to strings) may have breakages. (aka a sql option like "insert_list: [[:a, 1], [:b, 2]]" will break)
+- People using symbols as sql values (and expecting them to be turned to strings) may have breakages. (aka a sql option like "insert_list: 
+[[:a, 1], [:b, 2]]" will break)
+- setting DYNAMIC_SQL_RAW apparently did nothing, you actually need to set DynamicRecordsMeritfront::DYNAMIC_SQL_RAW. Changed default to false, which may break things. But
+since things may be broken already, it seemed like a good time to do this.
 - Went to new version due to 1. a large functionality improvement, 2. the fact that previous versions are broken as explained above.
 - more on breaking error
   - got this error: ActiveRecord::StatementInvalid (PG::ProtocolViolation: ERROR:  bind message supplies 3 parameters, but prepared statement "a27" requires 4)

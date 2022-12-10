@@ -18,6 +18,7 @@ module DynamicRecordsMeritfront
 		#should work, probably able to override by redefining in ApplicationRecord class.
 		#Note we defined here as it breaks early on as Rails.application returns nil
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
+        DYNAMIC_SQL_RAW = false
 	end
 
     class DynamicSqlVariables
@@ -94,7 +95,7 @@ module DynamicRecordsMeritfront
 
             type = DB_TYPE_MAPS[v.class]
             if type.nil?
-                raise StandardError.new("#{v}'s class #{v.class} unsupported type right now for ApplicationRecord#headache_sql")
+                raise StandardError.new("#{name} - #{v}'s class #{v.class} unsupported type right now for ApplicationRecord#headache_sql")
             elsif type.class == Proc
                 a = v[0]
                 # if a.nil?
