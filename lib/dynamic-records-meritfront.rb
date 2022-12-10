@@ -435,7 +435,7 @@ module DynamicRecordsMeritfront
             if instantiate_class or not self.abstract_class
                 instantiate_class = self if not instantiate_class
                 #no I am not actually this cool see https://stackoverflow.com/questions/30826015/convert-pgresult-to-an-active-record-model
-                ret = zip_ar_result(ret)
+                ret = ret.to_a
                 return ret.map{|r| dynamic_init(instantiate_class, r)}
                 # fields = ret.columns
                 # vals = ret.rows
@@ -447,7 +447,7 @@ module DynamicRecordsMeritfront
                 if raw
                     return ret
                 else
-                    return zip_ar_result(ret)
+                    return ret.to_a
                 end
             end
         end
@@ -462,8 +462,9 @@ module DynamicRecordsMeritfront
 		end
 
 		def _dynamic_instaload_union(insta_array)
-			insta_array.map{|insta|
-                next if insta[:dont_return]
+			insta_array.select{|insta|
+                not insta[:dont_return]
+            }.map{|insta|
 				start = "SELECT row_to_json(#{insta[:table_name]}.*) AS row, '#{insta[:klass]}' AS _klass, '#{insta[:table_name]}' AS _table_name FROM "
 				if insta[:relied_on]
 					ending = "#{insta[:table_name]}\n"
@@ -498,7 +499,8 @@ module DynamicRecordsMeritfront
 #{ _dynamic_instaload_handle_with_statements(with_statements) if with_statements.any? }
 #{ _dynamic_instaload_union(insta_array)}
 }
-			ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
+            returned_arrays = insta_array.select{|ar| not ar[:dont_return]}
+			ret_hash = returned_arrays.map{|ar| [ar[:table_name].to_s, []]}.to_h
 			opts[:raw] = true
 			ApplicationRecord.headache_sql(name, sql, opts).rows.each{|row|
 				#need to pre-parsed as it has a non-normal output.
@@ -507,14 +509,94 @@ module DynamicRecordsMeritfront
 				json = row[0]
 				parsed = JSON.parse(json)
 
-				ret_hash[table_name ].push dynamic_init(klass, parsed)
+				ret_hash[table_name].push dynamic_init(klass, parsed)
 			}
 			return ret_hash
 		end
 		alias swiss_instaload_sql instaload_sql
         alias dynamic_instaload_sql instaload_sql
 
-		
+        def test_drmf(model_with_an_id_column_and_timestamps)
+			m = model_with_an_id_column_and_timestamps
+			ar = m.superclass
+			mtname = m.table_name
+			ApplicationRecord.transaction do
+				puts 'test recieving columns not normally in the record.'
+				rec = m.dynamic_sql(%Q{
+					SELECT id, 5 AS random_column from #{mtname} LIMIT 10
+				}).first
+				raise StandardError.new('no id') unless rec.id
+				raise StandardError.new('no dynamic column') unless rec.random_column
+				puts 'pass 1'
+				
+				puts 'test raw off with a custom name'
+				recs = ar.dynamic_sql('test_2', %Q{
+					SELECT id, 5 AS random_column from #{mtname} LIMIT 10
+				}, raw: false)
+				raise StandardError.new('not array of hashes') unless recs.first.class == Hash and recs.class == Array
+				rec = recs.first
+				raise StandardError.new('no id [raw off]') unless rec['id']
+				raise StandardError.new('no dynamic column [raw off]') unless rec['random_column']
+				puts 'pass 2'
+
+				puts 'test raw on'
+				recs = ar.dynamic_sql('test_3', %Q{
+					SELECT id, 5 AS random_column from #{mtname} LIMIT 10
+				}, raw: true)
+				raise StandardError.new('not raw') unless recs.class == ActiveRecord::Result
+				rec = recs.first
+				raise StandardError.new('no id [raw]') unless rec['id']
+				raise StandardError.new('no dynamic column [raw]') unless rec['random_column']
+				puts 'pass 3'
+
+				puts 'test when some of the variables are diffrent then the same (#see version 3.0.1 notes)'
+				x = Proc.new { |a, b|
+					recs = ar.dynamic_sql('test_4', %Q{
+						SELECT id, 5 AS random_column from #{mtname} WHERE id > :a LIMIT :b
+					}, a: a, b: b)
+				}
+				x.call(1, 2)
+				x.call(1, 1)
+				puts 'pass 4'
+
+				puts 'test MultiAttributeArrays, including symbols and duplicate values.'
+				time = DateTime.now
+				ids = m.limit(5).pluck(:id)
+				values = ids.map{|id|
+					[id, :time, time]
+				}
+				ar.dynamic_sql(%Q{
+					INSERT INTO #{mtname} (id, created_at, updated_at)
+					VALUES :values
+					ON CONFLICT (id) DO NOTHING
+				}, values: values, time: time)
+				puts 'pass 5'
+				
+				puts 'test arrays'
+				recs = ar.dynamic_sql(%Q{
+					SELECT id from #{mtname} where id = ANY(:idz)
+				}, idz: ids, raw: false)
+				puts recs
+				raise StandardError.new('wrong length') if recs.length != 5
+				puts 'pass 6'
+
+				
+				puts 'test instaload_sql'
+				out = ar.instaload_sql([
+					ar.instaload("SELECT id FROM users", relied_on: true, dont_return: true, table_name: "users_2"),
+					ar.instaload("SELECT id FROM users_2 WHERE id % 2 != 0 LIMIT :limit", table_name: 'a'),
+					m.instaload("SELECT id FROM users_2 WHERE id % 2 != 1 LIMIT :limit", table_name: 'b')
+				], limit: 2)
+				puts out
+				raise StandardError.new('Bad return') if out["users_2"]
+				raise StandardError.new('Bad return') unless out["a"]
+				raise StandardError.new('Bad return') unless out["b"]
+				puts 'pass 7'
+
+				raise ActiveRecord::Rollback
+				#ApplicationRecord.dynamic_sql("SELECT * FROM")
+			end
+		end
 
 		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
 			base_arr = instaload_sql_output[base_name]
@@ -617,11 +699,7 @@ module DynamicRecordsMeritfront
 		alias swiss_attach dynamic_attach
 
 		def zip_ar_result(x)
-			fields = x.columns
-			vals = x.rows
-			vals.map { |v|
-				Hash[fields.zip(v)]
-			}
+			x.to_a
 		end
 
 		def dynamic_init(klass, input)
