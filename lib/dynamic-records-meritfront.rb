@@ -95,7 +95,7 @@ module DynamicRecordsMeritfront
 
             type = DB_TYPE_MAPS[v.class]
             if type.nil?
-                raise StandardError.new("#{name} - #{v}'s class #{v.class} unsupported type right now for ApplicationRecord#headache_sql")
+                raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for ApplicationRecord#headache_sql")
             elsif type.class == Proc
                 a = v[0]
                 # if a.nil?
