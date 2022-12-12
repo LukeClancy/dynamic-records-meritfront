@@ -441,6 +441,7 @@ since things may be broken already, it seemed like a good time to do this.
   - Name is optional on instaload_sql aswell
   - MultiAttributeArrays (array's of arrays) which can be passed into dynamic_sql largely for inserts/upserts will now treat symbols as an attribute name. This leads to more consise sql without running into above error.
   - When dynamic_sql errors out, it now posts some helpful information to the log.
+  - Added a test script. No experience testing, so its just a method you pass a model, and then it does a rollback to reverse any changes.
 
 ## Contributing
 
