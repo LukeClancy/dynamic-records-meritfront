@@ -11,14 +11,12 @@ Note that postgres is currently a requirement for this gem.
 ```ruby
 # returns a json-like hash list of user data
 users = ApplicationRecord.dynamic_sql(
-	'get_5_users',
 	'select * from users limit :our_limit',
 	our_limit: 5
 )
 
 #returns a list of users (each an instance of User)
 users = User.dynamic_sql(
-	'get_users_from_ids',
 	'select * from users where id = ANY (:ids)',
 	ids: [1,2,3]
 )
@@ -53,28 +51,34 @@ Or install it yourself as:
 class ApplicationRecord < ActiveRecord::Base
 	self.abstract_class = true
 	include DynamicRecordsMeritfront
-	DYNAMIC_SQL_RAW = false #<--- not required, but suggested to be turned off. Can be switched on for a per-request basis. Make sure this line is after include statement.
+	
+	#DYNAMIC_SQL_RAW determines whether dynamic_sql method returns a ActiveRecord::Response object or an Array.
+	#They both have pros and cons. False returns the array.
+	DynamicRecordsMeritfront::DYNAMIC_SQL_RAW = false
 end
 ```
 
 ### SQL methods
 
-These are methods written for easier sql usage.
+Methods written for easier sql usage.
 
-#### self.dynamic_sql(name, sql, opts = { })
+#### self.dynamic_sql( *optional* name, sql, opts = { })
 A better and safer way to write sql. Can return either a Hash, ActiveRecord::Response object, or an instantiated model.
+
+```ruby
+User.dynamic_sql('select * from users')	#returns all users
+ApplicationRecord.dynamic_sql('select id from users', raw: true).rows.flatten #get just the users ids
+```
 
 with options: 
 - options not stated below: considered sql arguments, and will replace their ":option_name" with a sql argument. Always use sql arguments to avoid sql injection. Lists are converted into a format such as ```{1,2,3,4}```. Lists of lists are converted into ```(1,2,3), (4,5,6), (7,8,9)``` etc. So as to allow easy inserts/upserts.
 - raw: whether to return a ActiveRecord::Response object or a hash when called on an abstract class (like ApplicationRecord). Default can be switched with DYNAMIC_SQL_RAW variable on the class level.
-- instantiate_class: determines what format to return. Can return ActiveRecord objects (User, Post, etc), or whatever raw is set to. I prefer doing the alterantive ```User.dynamic_sql(...)``` which is also supported. For example, ```User.dynamic_sql(...)``` will return User records. ```ApplicationRecord.dynamic_sql(..., raw: false)``` will return a List of Hashes with the column names as keys. ```ApplicationRecord.dynamic_sql(..., raw: true)``` will return an ActiveRecord::Response.
 
-other options:
+other less critical options:
 
 - prepare: Defaults to true. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. Should change whether the command will be prepared, which means that on subsequent calls the command will be faster. Downsides are when, for example, the sql query has hard-coded arguments, the query always changes, causing technical issues as the number of prepared statements stack up.
-- name_modifiers: allows one to change the associated name dynamically.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
-    this disables other options including arguments (except name_modifiers). Not sure how it effects prepared statements. Not super useful.
+    this disables other options including sql_arguments. Not sure how it effects prepared statements. Not super useful.
 - async: Defaults to false. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. See that methods documentation for more. I was looking through the source code, and I think it only effects how it logs to the logfile?
 	
 <details>
@@ -91,7 +95,7 @@ Delete Friend Requests between two users after they have become friends.
 </details>
 
 <details>
-<summary>dynamic sql example usage</summary>
+<summary>example usage with interpreted sql string</summary>
 Get all users who have made a friend request to a particular user with an optional limit.
 This is an example of why this method is good for dynamic prepared statements.
 
@@ -106,9 +110,7 @@ This is an example of why this method is good for dynamic prepared statements.
         ) AS all_friend_requests
         ORDER BY all_friend_requests.created_at DESC
         #{"LIMIT :limit" if limit > 0}
-    }, uid: u, limit: limit, name_modifiers: [
-        limit > 0 ? 'limited' : nil
-    ])
+    }, uid: u, limit: limit)
 ```
 </details>
 	
@@ -117,13 +119,13 @@ This is an example of why this method is good for dynamic prepared statements.
 
 ```ruby
     #get a normal test vote
-    test =  Vote.dynamic_sql('test', %Q{
+    test =  Vote.dynamic_sql(%Q{
         SELECT id FROM votes LIMIT 1
     }).first
     v.inspect 	#   "#<Vote id: 696969>"
 
     #get a cool test vote. Note that is_this_vote_cool is not on the vote table.
-    test =  Vote.dynamic_sql('test', %Q{
+    test =  Vote.dynamic_sql(%Q{
         SELECT id, 'yes' AS is_this_vote_cool FROM votes LIMIT 1
     }).first
    test.inspect #   #<Vote id: 696969, is_this_vote_cool: "yes"> #getting attributes added dynamically to the models, and also showing up on inspects, was... more difficult than i anticipated.
@@ -175,6 +177,10 @@ This will output sql similar to below. Note this can be done for multiple conver
 #### self.dynamic_preload(records, associations)
 Preloads from a list of records, and not from a ActiveRecord_Relation. This will be useful when using the above dynamic_sql method (as it returns a list of records, and not a record relation). This is basically the same as a normal relation preload but it works on a list. 
 
+```ruby
+ApplicationRecord.dynamic_preload(comments, [:votes])
+```
+
 <details>
 <summary>example usage</summary>
 Preload :votes on some comments. :votes is an active record has_many relation.
@@ -184,7 +190,7 @@ Preload :votes on some comments. :votes is an active record has_many relation.
         SELECT * FROM comments LIMIT 4
     })
     comments.class.to_s # 'Array' note: not a relation.
-    ApplicationRecord.headache_preload(comments, [:votes])
+    ApplicationRecord.dynamic_preload(comments, [:votes])
     puts comments[0].votes #this line should be preloaded and hence not call the database
 
     #note that this above is basically the same as doing the below assuming there is a comments relation on the user model.
@@ -198,6 +204,10 @@ put in a string name of the migration's class and it will say if it has allready
 good during enum migrations as the code to migrate wont run if enumerate is there 
 as it is not yet enumerated (causing an error when it loads the class that will have the
 enumeration in it). This can lead it to being impossible to commit clean code.
+
+```ruby
+ApplicationRecord.has_run_migration?('UserImageRelationsTwo')
+```
 
 <details><summary>example usage</summary>
 only load relationa if it exists in the database
@@ -219,6 +229,10 @@ end
 
 accepts a list of association names, checks if the model has those associations
 
+```ruby
+obj.has_association?(:votes)
+```
+
 <details><summary>example usage</summary>
 Check if object is a votable class
 
@@ -230,19 +244,27 @@ obj.has_association?(:votes) #false
 ```
 </details>
 
-#### self.dynamic_instaload_sql(name, insta_array, opts = { })
+#### self.dynamic_instaload_sql( *optional* name, insta_array, opts = { })
 *instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Maybe a bit overcomplicated. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
 - opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
 - requires a list of instaload method output which provides information for how to treat each sql block.
-	
+
+```ruby
+out = ApplicationRecord.instaload_sql([
+	ApplicationRecord.instaload("SELECT id FROM users", relied_on: true, dont_return: true, table_name: "users_2"),
+	ApplicationRecord.instaload("SELECT id FROM users_2 WHERE id % 2 != 0 LIMIT :limit", table_name: 'a'),
+	User.instaload("SELECT id FROM users_2 WHERE id % 2 != 1 LIMIT :limit", table_name: 'b')
+], limit: 2)
+```
+
 <details>
 <summary>example usage</summary>
 #get list of users, those users friends, and who those users follow, all in one request.
 
 ```ruby
    # the ruby entered
-   output = ApplicationRecord.dynamic_instaload_sql('test', [
+   output = ApplicationRecord.dynamic_instaload_sql([
       User.instaload('SELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.created_at > :time', table_name: 'limited_users', relied_on: true),
       User.instaload(%Q{
          SELECT friends.smaller_user_id AS id, friends.bigger_user_id AS friended_to
@@ -297,8 +319,6 @@ the output:
    {"followable_id"=>932, "follower_id"=>23},
    {"followable_id"=>935, "follower_id"=>19},
    ...]}
-
-
 ```
 </details>
 	
