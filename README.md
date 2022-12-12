@@ -244,7 +244,7 @@ obj.has_association?(:votes) #false
 ```
 </details>
 
-#### self.dynamic_instaload_sql( *optional* name, insta_array, opts = { })
+#### self.instaload_sql( *optional* name, insta_array, opts = { })
 *instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Maybe a bit overcomplicated. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
 - opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
@@ -264,7 +264,7 @@ out = ApplicationRecord.instaload_sql([
 
 ```ruby
    # the ruby entered
-   output = ApplicationRecord.dynamic_instaload_sql([
+   output = ApplicationRecord.instaload_sql([
       User.instaload('SELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.created_at > :time', table_name: 'limited_users', relied_on: true),
       User.instaload(%Q{
          SELECT friends.smaller_user_id AS id, friends.bigger_user_id AS friended_to
@@ -323,7 +323,7 @@ the output:
 </details>
 	
 #### self.instaload(sql, table_name: nil, relied_on: false, dont_return: false)
-A method used to prepare data for the dynamic_instaload_sql method. It returns a hash of options.
+A method used to prepare data for the instaload_sql method. It returns a hash of options.
 - klass called on: if called on an abstract class (ApplicationRecord) it will return a list of hashes with the data. Otherwise returns a list of the classes records.
 - table_name: sets the name of the temporary postgresql table. This can then be used in further instaload sql snippets.
 - relied_on: will make it so other instaload sql snippets can reference this table (it makes it use posrgresql's WITH operator)
@@ -349,7 +349,7 @@ User.instaload('SELECT id FROM users WHERE users.id = ANY (:user_ids) AND users.
 </details>
 
 #### self.dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
-taking the output of the dynamic_instaload_sql, this method attaches the models together so they are attached.
+taking the output of the instaload_sql method, this method creates relations between the models.
 - base_name: the name of the table we will be attaching to
 - attach_name: the name of the table that will be attached
 - base_on: put a proc here to override the matching key for the base table. Default is, for a user and post type, {|user| user.id}
@@ -357,7 +357,7 @@ taking the output of the dynamic_instaload_sql, this method attaches the models 
 - one_to_one: switches between a one-to-one relationship or not
 
 <details> 
-<summary> attach information for each limited_user in the dynamic_instaload_sql example </summary>
+<summary> attach information for each limited_user in the instaload_sql example </summary>
 	
 ```ruby
 	
