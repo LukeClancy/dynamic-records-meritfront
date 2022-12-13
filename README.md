@@ -67,7 +67,7 @@ A better and safer way to write sql. Can return either a Hash, ActiveRecord::Res
 
 ```ruby
 User.dynamic_sql('select * from users')	#returns all users
-ApplicationRecord.dynamic_sql('select * from users') #returns all user columns in an array of hashes
+ApplicationRecord.dynamic_sql('select * from users') #returns all user column information in an array
 ```
 
 with options: 
