@@ -162,7 +162,7 @@ Do an upsert
 		VALUES :rows
 		ON CONFLICT (conversation_id,user_id)
 		DO UPDATE SET updated_at = :time
-	}, rows: rows, time: t)
+	}, rows: rows, time: time)
 ```
 This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that we sent only one time variable during our request instead of duplicating it.
 ```sql
