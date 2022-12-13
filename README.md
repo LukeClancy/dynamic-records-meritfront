@@ -149,12 +149,13 @@ Get users who match a list of ids. Uses a postgresql Array, see the potential is
 Do an upsert
 
 ```ruby
+	time = DateTime.now
 	rows = uzrs.map{|u| [
 		u.id,		#user_id
 		self.id,	#conversation_id
 		from,		#invited_by
-		t,		#created_at
-		t,		#updated_at
+		:time,		#created_at		(We use symbols to denote other sql arguments)
+		:time,		#updated_at
 	]}
 	ApplicationRecord.dynamic_sql("upsert_conversation_invites_2", %Q{
 		INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
@@ -163,13 +164,13 @@ Do an upsert
 		DO UPDATE SET updated_at = :time
 	}, rows: rows, time: t)
 ```
-This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that it only sent one time variable as an argument as dynamic_sql detected that we were sending duplicate information.
+This will output sql similar to below. Note this can be done for multiple conversation_participants. Also note that we sent only one time variable during our request instead of duplicating it.
 ```sql
 	INSERT INTO conversation_participants (user_id, conversation_id, invited_by, created_at, updated_at)
 	VALUES ($1,$2,$3,$4,$4)
 	ON CONFLICT (conversation_id,user_id)
 	DO UPDATE SET updated_at = $4
-	-- [["rows_1", 15], ["rows_2", 67], ["rows_3", 6], ["rows_4", "2022-10-13 20:49:27.441372"]]
+	-- [["rows_1", 15], ["rows_2", 67], ["rows_3", 6], [:time, "2022-10-13 20:49:27.441372"]]
 ```
 </details>
 	
