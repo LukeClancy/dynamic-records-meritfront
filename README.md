@@ -459,6 +459,14 @@ since things may be broken already, it seemed like a good time to do this.
 v3.0.6
 - Further simplifications of the library. After looking further into ActiveRecord::Response objects I realized that they respond to .map .first [3] and other Array methods. In addition to this they have the .rows and .cols methods. Feel like I should of caught this earlier, but anyway, functionaly i will be setting DYNAMIC_SQL_RAW to true by default. docs-wise I am removing any reference to the raw option and DYNAMIC_SQL_RAW. This is mainly as ActiveRecord::Response acts as an Array with more functionality.
 
+## Questions
+- Q: does the name of a sql operation have anything to do with prepared statements?
+- A: no, the prepared statement determines uniqueness in some other way, dont worry about collisions. The only issue with prepared statements that I can determine is when you write a statement where things change every time, thus preparing potentially infinite prepared statements. This can be alleviated by using sql arguments correctly. Using arguments correctly also will stop sql injection attacks so. You know. Do it properly. Dont just hard code them into the query.
+- Q: The default name of my sql statements looks like a stack trace? Whats going on?
+- A: We set the location of where you called the function as the default name for easy debugging. Its not an error, we just take some info from the stacktrace. It also includes the method name which can provide some insite into what the query is doing. Makes logs alot nicer to look at.
+- Q: Whats MeritFront?
+- A: I am making a social media platform
+	
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/LukeClancy/dynamic-records-meritfront. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/LukeClancy/dynamic-records-meritfront/blob/master/CODE_OF_CONDUCT.md).
