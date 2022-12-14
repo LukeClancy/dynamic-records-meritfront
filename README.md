@@ -45,16 +45,12 @@ Or install it yourself as:
 
 ## Usage
 
-### Apply to your ApplicationRecord class as such
+### Apply to your ApplicationRecord class as such (or whatever subclass of ActiveRecord::Base you have)
 
 ```ruby
 class ApplicationRecord < ActiveRecord::Base
 	self.abstract_class = true
 	include DynamicRecordsMeritfront
-	
-	#DYNAMIC_SQL_RAW determines whether dynamic_sql method returns a ActiveRecord::Response object or an Array.
-	#They both have pros and cons. False returns the array.
-	DynamicRecordsMeritfront::DYNAMIC_SQL_RAW = false
 end
 ```
 
@@ -72,10 +68,6 @@ ApplicationRecord.dynamic_sql('select * from users') #returns all user column in
 
 with options: 
 - options not stated below: considered sql arguments, and will replace their ":option_name" with a sql argument. Always use sql arguments to avoid sql injection. Lists are converted into a format such as ```{1,2,3,4}```. Lists of lists are converted into ```(1,2,3), (4,5,6), (7,8,9)``` etc. So as to allow easy inserts/upserts.
-- raw: whether to return a ActiveRecord::Response object or a hash when called on an abstract class (like ApplicationRecord). Default can be switched with DYNAMIC_SQL_RAW variable on the class level.
-
-other less critical options:
-
 - prepare: Defaults to true. Gets passed to ActiveRecord::Base.connection.exec_query as a parameter. Should change whether the command will be prepared, which means that on subsequent calls the command will be faster. Downsides are when, for example, the sql query has hard-coded arguments, the query always changes, causing technical issues as the number of prepared statements stack up.
 - multi_query: allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
     this disables other options including sql_arguments. Not sure how it effects prepared statements. Not super useful.
@@ -248,7 +240,7 @@ obj.has_association?(:votes) #false
 #### self.instaload_sql( *optional* name, insta_array, opts = { })
 *instaloads* a bunch of diffrent models at the same time by casting them to json before returning them. Kinda cool. Maybe a bit overcomplicated. Seems to be more efficient to preloading when i tested it.
 - name is passed to dynamic_sql and is the name of the sql request
-- opts are passed to dynamic_sql (except for the raw option which is set to true. Raw output is not allowed on this request)
+- opts are passed to dynamic_sql
 - requires a list of instaload method output which provides information for how to treat each sql block.
 
 ```ruby
@@ -463,6 +455,9 @@ since things may be broken already, it seemed like a good time to do this.
   - MultiAttributeArrays (array's of arrays) which can be passed into dynamic_sql largely for inserts/upserts will now treat symbols as an attribute name. This leads to more consise sql without running into above error.
   - When dynamic_sql errors out, it now posts some helpful information to the log.
   - Added a test script. No experience testing, so its just a method you pass a model, and then it does a rollback to reverse any changes.
+  
+v3.0.6
+- Further simplifications of the library. After looking further into ActiveRecord::Response objects I realized that they respond to .map .first [3] and other Array methods. In addition to this they have the .rows and .cols methods. Feel like I should of caught this earlier, but anyway, functionaly i will be setting DYNAMIC_SQL_RAW to true by default. docs-wise I am removing any reference to the raw option and DYNAMIC_SQL_RAW. This is mainly as ActiveRecord::Response acts as an Array with more functionality.
 
 ## Contributing
 
