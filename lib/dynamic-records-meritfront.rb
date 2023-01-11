@@ -593,7 +593,7 @@ module DynamicRecordsMeritfront
                 time = DateTime.now
                 values = [[1, :time, :time], [2, :time, :time]]
                 out = ar.dynamic_sql(%Q{
-                    insert into mtname (id, created_at, updated_at)
+                    insert into #{mtname} (id, created_at, updated_at)
                     values :values
                     on conflict (id)
                     do update set updated_at = :time
