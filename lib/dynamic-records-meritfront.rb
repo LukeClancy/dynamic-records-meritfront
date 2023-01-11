@@ -410,7 +410,7 @@ module DynamicRecordsMeritfront
                             sql.gsub!(":#{key}", sql_for_replace)
                         else
                             #check if its currently in the sql argument list
-                            x = key_index(key)
+                            x = var_track.key_index(key)
                             if x.nil?
                                 #if not, get the next number that it will be assigned and replace the key w/ that number.
                                 x = var_track.next_sql_num
