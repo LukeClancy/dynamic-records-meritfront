@@ -392,19 +392,21 @@ module DynamicRecordsMeritfront
                         #replace MultiRowExpressions
                         v = params[key]
                         #check if it looks like one
-                        looks_like_multi_attribute_array = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
-                        if v.class == MultiRowExpression or looks_like_multi_attribute_array
+                        looks_like_multi_row_expression = ((v.class == Array) and (not v.first.nil?) and (v.first.class == Array))
+                        if v.class == MultiRowExpression or looks_like_multi_row_expression
                         #we need to substitute with the correct sql now.
-                            v = MultiRowExpression.new(v) if looks_like_multi_attribute_array #standardize
+                            v = MultiRowExpression.new(v) if looks_like_multi_row_expression #standardize
                             #process into appropriate sql while keeping track of variables
                             sql_for_replace = v.for_query(key, var_track)
                             #replace the key with the sql
                             sql.gsub!(":#{key}", sql_for_replace)
                         else
+                            
                             x = var_track.next_sql_num
                             if sql.gsub!(":#{key}", "$#{x}")
                                 var_track.add_key_value(key, v)
                             end
+
                         end
                     end
                     sql_vals = var_track.get_array_for_exec_query
@@ -437,12 +439,6 @@ module DynamicRecordsMeritfront
                 #no I am not actually this cool see https://stackoverflow.com/questions/30826015/convert-pgresult-to-an-active-record-model
                 ret = ret.to_a
                 return ret.map{|r| dynamic_init(instantiate_class, r)}
-                # fields = ret.columns
-                # vals = ret.rows
-                # ret = vals.map { |v|
-                # 	dynamic_init()
-                # 	instantiate_class.instantiate(Hash[fields.zip(v)])
-                # }
             else
                 if raw
                     return ret
@@ -592,6 +588,17 @@ module DynamicRecordsMeritfront
 				raise StandardError.new('Bad return') unless out["a"]
 				raise StandardError.new('Bad return') unless out["b"]
 				puts 'pass 7'
+
+                puts "test dynamic_sql multi_attribute_array V3.0.6 error"
+                time = DateTime.now
+                values = [[1, :time, :time], [2, :time, :time]]
+                out = ar.dynamic_sql(%Q{
+                    insert into mtname (id, created_at, updated_at)
+                    values :values
+                    on conflict (id)
+                    do update set updated_at = :time
+                }, time: time, values: values)
+                puts 'pass 8'
 
 				raise ActiveRecord::Rollback
 				#ApplicationRecord.dynamic_sql("SELECT * FROM")
