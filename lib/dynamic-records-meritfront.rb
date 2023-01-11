@@ -1,6 +1,8 @@
 require "dynamic-records-meritfront/version"
 require 'hashid/rails'
 
+#this file contains multiple classes which should honestly be split up
+
 module DynamicRecordsMeritfront
 	extend ActiveSupport::Concern
 
@@ -27,11 +29,17 @@ module DynamicRecordsMeritfront
             self.params = params
         end
 
+        def key_index(key)
+            k = sql_hash.keys.index(key)
+            k += 1 unless k.nil?
+            k
+        end
+
         def add_key_value(key, value = nil)
             value = params[key] if value.nil?
             #tracks the variable and returns the keys sql variable number
             sql_hash[key] ||= convert_to_query_attribute(key, value)
-            return sql_hash.keys.index(key) + 1
+            return key_index(key)
         end
 
         def next_sql_num
@@ -401,12 +409,19 @@ module DynamicRecordsMeritfront
                             #replace the key with the sql
                             sql.gsub!(":#{key}", sql_for_replace)
                         else
-                            
-                            x = var_track.next_sql_num
-                            if sql.gsub!(":#{key}", "$#{x}")
-                                var_track.add_key_value(key, v)
+                            #check if its currently in the sql argument list
+                            x = key_index(key)
+                            if x.nil?
+                                #if not, get the next number that it will be assigned and replace the key w/ that number.
+                                x = var_track.next_sql_num
+                                if sql.gsub!(":#{key}", "$#{x}")
+                                    #only actually add to sql arguments when we know the attribute was used.
+                                    var_track.add_key_value(key, v)
+                                end
+                            else
+                                #its already in use as a sql argument and has a number, use that number.
+                                sql.gsub!(":#{key}", "$#{x}")
                             end
-
                         end
                     end
                     sql_vals = var_track.get_array_for_exec_query
@@ -589,7 +604,7 @@ module DynamicRecordsMeritfront
 				raise StandardError.new('Bad return') unless out["b"]
 				puts 'pass 7'
 
-                puts "test dynamic_sql multi_attribute_array V3.0.6 error"
+                puts "test dynamic_sql V3.0.6 error to do with multi_attribute_arrays which is hard to describe"
                 time = DateTime.now
                 values = [[1, :time, :time], [2, :time, :time]]
                 out = ar.dynamic_sql(%Q{
