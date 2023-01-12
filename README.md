@@ -457,12 +457,15 @@ since things may be broken already, it seemed like a good time to do this.
   - this also tells me that uniq'ing variables to decrease the number of them was a bad idea which could cause random failures.
 - functionality improvements
   - The biggest change is that names are now optional! name_modifiers is now depreciated functionality as it serves no useful purpose. Will leave in for compatibility but take out of documentation. Used to think the name was related to prepared statements. This will lead simpler ruby code.
-  - If name is left out, the name will be set to the location in your app which called the method. For example, when dynamic_sql was called from irb, the name was: "(irb):45:in `irb_binding'". This is done using stack trace functionality.
+  - If name is left out, the name will be set to the location in your app which called the method. For example, when dynamic_sql was called from irb, the name was: "(irb):45:in `irb_binding'". This is done using stack trace functionality. In another case the name was "app/models/report.rb:364:in `refresh_db_methods'"
   - dynamic_instaload_sql is now just instaload_sql. dynamic_instaload_sql has been aliased.
   - Name is optional on instaload_sql aswell
   - MultiAttributeArrays (array's of arrays) which can be passed into dynamic_sql largely for inserts/upserts will now treat symbols as an attribute name. This leads to more consise sql without running into above error.
   - When dynamic_sql errors out, it now posts some helpful information to the log.
   - Added a test script. No experience testing, so its just a method you pass a model, and then it does a rollback to reverse any changes.
+
+3.0.11
+- error fix to do with multi row expressions and sql variables. No breaking changes.
 
 ## Contributing
 
