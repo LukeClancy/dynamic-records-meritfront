@@ -459,7 +459,6 @@ since things may be broken already, it seemed like a good time to do this.
 v3.0.6
 - Further simplifications of the library. After looking further into ActiveRecord::Response objects I realized that they respond to .map .first [3] and other Array methods. In addition to this they have the .rows and .cols methods. Feel like I should of caught this earlier, but anyway, functionaly i will be setting DYNAMIC_SQL_RAW to true by default. docs-wise I am removing any reference to the raw option and DYNAMIC_SQL_RAW. This is mainly as ActiveRecord::Response acts as an Array with more functionality.
 
-<<<<<<< HEAD
 3.0.11
 - error fix to do with multi row expressions and sql variables. No breaking changes.
 
