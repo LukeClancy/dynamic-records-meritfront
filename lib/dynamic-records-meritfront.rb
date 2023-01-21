@@ -20,6 +20,7 @@ module DynamicRecordsMeritfront
 		#Note we defined here as it breaks early on as Rails.application returns nil
 		PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
         DYNAMIC_SQL_RAW = true
+
 	end
     class DynamicSqlVariables
         attr_accessor :sql_hash
@@ -157,13 +158,20 @@ module DynamicRecordsMeritfront
 		end
 	end
 
-	def questionable_attribute_set(atr, value)
+	def questionable_attribute_set(atr, value, as_default: false)
 		#this is needed on initalization of a new variable after the actual thing has been made already.
 
-		#set a bunk type of the generic value type
-		@attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
-		#Set it
-		self[atr] = value
+        if as_default
+            #set a bunk type of the generic value type
+            @attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new if @attributes.instance_variable_get(:@types)[atr].nil?
+            #Set it
+            self[atr] = value if self[atr].nil?
+        else
+            #set a bunk type of the generic value type
+            @attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
+            #Set it
+            self[atr] = value
+        end
 	end
 
 	def inspect
@@ -487,11 +495,13 @@ module DynamicRecordsMeritfront
 			#{ other_statements.map{|os| "SELECT row_to_json(#{os[:table_name]}.*) AS row, '#{os[:klass]}' AS _klass FROM (\n#{os[:sql]}\n)) AS #{os[:table_name]}\n" }.join(' UNION ALL ')}
 		end
 
-        def instaload(sql, table_name: nil, relied_on: false, dont_return: false)
+        def instaload(sql, table_name: nil, relied_on: false, dont_return: false, base_name: nil, base_on: nil, attach_on: nil, one_to_one: false, as: nil, delete_after: true)
+            # dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
+
             table_name ||= "_" + self.to_s.underscore.downcase.pluralize
             klass = self.to_s
             sql = "\t" + sql.strip
-            return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return}
+            return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return, base_name: nil, base_on: nil, attach_on: nil, one_to_one: false, as: nil, delete_after: true}
         end
 
 		def instaload_sql(*args) #name, insta_array, opts = { })
@@ -522,6 +532,31 @@ module DynamicRecordsMeritfront
 
 				ret_hash[table_name].push dynamic_init(klass, parsed)
 			}
+
+            #formatting options
+            for insta in insta_array
+                if insta[:base_name]
+                    #in this case, 'as' is meant as to what pseudonym to dynamicly attach it as
+                    dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
+                        one_to_one: insta[:one_to_one], as: insta[:as], delete_after: insta[:delete_after])
+                elsif insta[:as]
+                    #in this case, the idea is more polymorphic in nature. unless they are confused and just want to rename the table (this can be done with
+                    #      table_name)
+                    if ret_hash[insta[:as]]
+                        ret_hash[insta[:as]] += ret_hash[insta[:table_name]]
+                    else
+                        ret_hash[insta[:as]] = insta[:table_name].dup
+                    end
+                end
+            end
+
+            #delete aft the above formatting options so people can attach to the old table_name without issues.
+            for insta in insta_array
+                if insta[:as] and insta[:as] != insta[:table_name] #last bit just in case they are confuzzled.
+                    ret_hash.delete(insta[:table_name])
+                end
+            end
+            
 			return ret_hash
 		end
 		alias swiss_instaload_sql instaload_sql
@@ -620,41 +655,42 @@ module DynamicRecordsMeritfront
 			end
 		end
 
-		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
+		def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil, delete_after: false)
+            #as just lets it attach us anywhere on the base class, and not just as the attach_name.
+            #Can be useful in polymorphic situations, otherwise may lead to confusion.
+            as ||= attach_name
+
 			base_arr = instaload_sql_output[base_name]
 			
 			#return if there is nothing for us to attach to.
-			return unless base_arr.any?
+			return if base_arr.nil? or not base_arr.any?
 
 			#set variables for neatness and so we dont compute each time
 			#	base class information
 			base_class = base_arr.first.class
 			base_class_is_hash = base_class <= Hash
 			
-			
-			#variable accessors and defaults.
+			#variable accessors and defaults. Make sure it only sets if not defined already as
+            #the 'as' option allows us to override to what value it actually gets set in the end, 
+            #and in polymorphic situations this could be called in multiple instances
 			base_arr.each{ |o|
-				#
-				#   there is no way to set an attribute after instantiation I tried I looked
-				#   I dealt with silent breaks on symbol keys, I have wasted time, its fine.
-				
-				if not base_class_is_hash
-					if one_to_one
-						#attach name must be a string
-						o.questionable_attribute_set(attach_name, nil)
-					else
-						o.questionable_attribute_set(attach_name, [])
-					end
-				end
-				# o.dynamic o.singleton_class.public_send(:attr_accessor, attach_name_sym) unless base_class_is_hash
-				# o.instance_variable_set(attach_name_with_at, []) unless one_to_one
+                if not base_class_is_hash
+                    if one_to_one
+                        #attach name must be a string
+                        o.questionable_attribute_set(as, nil, as_default: true)
+                    else
+                        o.questionable_attribute_set(as, [], as_default: true)
+                    end
+                elsif not one_to_one
+                    o[as] ||= []
+                end
 			}
 
-			#make sure the attach class has something going on
+			#make sure the attach class has something going on. We do this after the default stage
 			attach_arr = instaload_sql_output[attach_name]
-			return unless attach_arr.any?
+			return if attach_arr.nil? or not attach_arr.any?
 			
-			#	attach class information
+			#   attach class information
 			attach_class = attach_arr.first.class
 			attach_class_is_hash = attach_class <= Hash
 
@@ -699,9 +735,9 @@ module DynamicRecordsMeritfront
 			#(b=base, a=attach)
 			add_to_base = Proc.new{|b, a|
 				if one_to_one
-					b[attach_name] = a
+					b[as] = a
 				else
-					b[attach_name].push a
+					b[as].push a
 				end
 			}
 
@@ -716,6 +752,7 @@ module DynamicRecordsMeritfront
 					end
 				end
 			}
+
 			return attach_arr
 		end
 		alias swiss_attach dynamic_attach
