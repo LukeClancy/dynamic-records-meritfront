@@ -161,15 +161,16 @@ module DynamicRecordsMeritfront
 	def questionable_attribute_set(atr, value, as_default: false)
 		#this is needed on initalization of a new variable after the actual thing has been made already.
 
+        types = @attributes.instance_variable_get(:@types)
+         
+        #set a bunk generic value type for unexpected columns.
+        unless types.keys.include?(atr.to_s)
+            @attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
+        end
+
         if as_default
-            #set a bunk type of the generic value type
-            @attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new if @attributes.instance_variable_get(:@types)[atr].nil?
-            #Set it
             self[atr] = value if self[atr].nil?
         else
-            #set a bunk type of the generic value type
-            @attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
-            #Set it
             self[atr] = value
         end
 	end
