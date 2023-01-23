@@ -161,17 +161,24 @@ module DynamicRecordsMeritfront
 	def questionable_attribute_set(atr, value, as_default: false)
 		#this is needed on initalization of a new variable after the actual thing has been made already.
 
-        types = @attributes.instance_variable_get(:@types)
-         
-        #set a bunk generic value type for unexpected columns.
-        unless types.keys.include?(atr.to_s)
-            @attributes.instance_variable_get(:@types)[atr] = ActiveModel::Type::Value.new
-        end
+        #note that the below is the value lookup for ActiveModel, but values seems to have all the database columns
+        #in it anyways
+        #
+        # def key?(name)
+        #     (values.key?(name) || types.key?(name) || @attributes.key?(name)) && self[name].initialized?
+        # end
 
-        if as_default
-            self[atr] = value if self[atr].nil?
+        values = @attributes.instance_variable_get(:@values)
+
+        #for those not in the default list of whatever, we put in an attr_accessor 
+        unless values.keys.include?(atr.to_s)
+            values[atr] = value
         else
-            self[atr] = value
+            if as_default
+                self[atr] = value if self[atr].nil?
+            else
+                self[atr] = value
+            end 
         end
 	end
 
