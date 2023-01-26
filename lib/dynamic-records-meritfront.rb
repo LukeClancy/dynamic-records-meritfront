@@ -545,12 +545,15 @@ module DynamicRecordsMeritfront
         end
 
         def instaload(sql, table_name: nil, relied_on: false, dont_return: false, base_name: nil, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            # dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false)
+            #this function just makes everything a little easier to deal with by providing defaults, making it nicer to call, and converting potential symbols to strings.
+            #At the end of the day it just returns a hash with the settings in it though. So dont overthink it too much.
 
             table_name ||= "_" + self.to_s.underscore.downcase.pluralize
             klass = self.to_s
             sql = "\t" + sql.strip
-            return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return, base_name: base_name, base_on: base_on, attach_on: attach_on, one_to_one: one_to_one, as: as}
+            raise StandardError.new("base_on needs to be nil or a Proc") unless base_on.nil? or base_on.kind_of? Proc
+            raise StandardError.new("attach_on needs to be nil or a Proc") unless attach_on.nil? or attach_on.kind_of? Proc
+            return {table_name: table_name.to_s, klass: klass.to_s, sql: sql, relied_on: relied_on, dont_return: dont_return, base_name: base_name.to_s, base_on: base_on, attach_on: attach_on, one_to_one: one_to_one, as: as.to_s}
         end
 
         def instaload_sql(*args) #name, insta_array, opts = { })
