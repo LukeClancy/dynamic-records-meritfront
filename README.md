@@ -5,7 +5,8 @@ Dyanmic Records Meritfront helps extend active record functionality to make it m
 2. communicate with the backend more effectively with sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have dynamic sql queries that are hard to convert properly into ruby.
 3. add other helper methods to work with your database, such as checking if relations exist, or if a migration has been run.
 
-Note that postgres is currently a requirement for this gem.
+Note that postgres is currently a requirement for using arrays in this gem. If it becomes an issue send me a pull request or an issue or somethin.
+Also note that the gem has not been tested outside of postgres.
 
 ## Basic Examples
 ```ruby
@@ -459,9 +460,15 @@ since things may be broken already, it seemed like a good time to do this.
 v3.0.6
 - Further simplifications of the library. After looking further into ActiveRecord::Response objects I realized that they respond to .map .first [3] and other Array methods. In addition to this they have the .rows and .cols methods. Feel like I should of caught this earlier, but anyway, functionaly i will be setting DYNAMIC_SQL_RAW to true by default. docs-wise I am removing any reference to the raw option and DYNAMIC_SQL_RAW. This is mainly as ActiveRecord::Response acts as an Array with more functionality.
 
-<<<<<<< HEAD
 3.0.11
 - error fix to do with multi row expressions and sql variables. No breaking changes.
+
+3.0....
+- nil is now supported somewhat as a variable value for dynamic_sql (and instaload_sql). It seeeeems to work... i am suspicous though. The way it works is by assuming the value type boolean and having the value be null.
+- New way of creating instaload_sql, instaload, and dynamic_attach configurations which is more user friendly. Haven't put an example up yet. Good for polymorphism.
+- added some debug logs for the instaload configuration
+- changed how variables are set for ActiveRecord objects, I gave up on figuring out what ActiveRecord is doing for *the most part* and i now just do a eval("self.#{parameter}=value") type deal. Works well. Allows you to override relations when doing polymorphic stuff which is a pretty big use case.
+- I am thinking of changing how arrays are handled as that is really the only postgresql based dependency here and that will allow the library to open up to other databases. Issue is all the code I have already written in my app dependant on such things.
 
 ## Questions
 - Q: does the name of a sql operation have anything to do with prepared statements?

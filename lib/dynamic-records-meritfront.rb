@@ -86,6 +86,7 @@ module DynamicRecordsMeritfront
             DateTime => ActiveModel::Type::DateTime,
             Time => ActiveModel::Type::Time,
             Float => ActiveModel::Type::Float,
+            NilClass => ActiveModel::Type::Boolean,
             Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) }
         }
 
@@ -105,7 +106,11 @@ module DynamicRecordsMeritfront
 
             type = DB_TYPE_MAPS[v.class]
             if type.nil?
-                raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for ApplicationRecord#headache_sql")
+                # if v.class == NilClass
+                #     raise StandardError.new("")
+                # else
+                    raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for ApplicationRecord#headache_sql")
+                # end
             elsif type.class == Proc
                 a = v[0]
                 # if a.nil?
