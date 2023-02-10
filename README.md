@@ -315,6 +315,52 @@ the output:
    ...]}
 ```
 </details>
+
+<details>
+<summary>above example with relations (no need for dynamic_attach)</summary>
+#get list of users, those users friends, and who those users follow, all in one request.
+
+```ruby
+    friend_attach = attach_on: Proc.new {|users_friend|
+        users_friend.friended_to
+    }
+   
+   output = ApplicationRecord.instaload_sql([
+      User.instaload(%Q{
+              select id 
+	      from users
+	      where users.id = any (:user_ids) and users.created_at > :time
+	  }, table_name: :limited_users, relied_on: true),
+      User.instaload(%Q{
+         select friends.smaller_user_id as id, friends.bigger_user_id as friended_to
+         from friends
+	     inner join limited_users on limited_users.id = bigger_user_id
+         union
+         select friends.bigger_user_id as id, friends.smaller_user_id as friended_to
+	 from friends
+	     inner join limited_users ON limited_users.id = smaller_user_id
+      }, table_name: :users_friends, base_name: :limited_users, attach_on: attach_on),
+      ApplicationRecord.instaload(%Q{
+         SELECT follows.followable_id, follows.follower_id
+         FROM follows
+         INNER JOIN limited_users ON follows.follower_id = limited_users.id
+      }, table_name: :users_follows, base_name: :limited_users)
+   ], user_ids: uids, time: t)
+   
+   pp out['limited_users']
+
+```
+sql output: same as example above this example
+
+printed output (same as in dynamic attach example): 
+```ruby
+#<User id: 3, users_friends: [#<User id: 5, friended_to: 3>, #<User id: 6, friended_to: 3>, #<User id: 21, friended_to: 3>], users_follows: [{"followable_id"=>935, "follower_id"=>3}, {"followable_id"=>938, "follower_id"=>3}, ...]>,
+ #<User id: 14, users_friends: [#<User id: 9, friended_to: 14>, #<User id: 21, friended_to: 14>, ...], users_follows: [{"followable_id"=>936, "follower_id"=>14}, {"followable_id"=>937, "follower_id"=>14}, {"followable_id"=>938, "follower_id"=>14}, ...]>,
+ #<User id: 9, users_friends: [#<User id: 14, friended_to: 9>, #<User id: 22, friended_to: 9>, ...], users_follows: [{"followable_id"=>938, "follower_id"=>9}, {"followable_id"=>937, "follower_id"=>9}, ...]>,
+ #<User id: 19, users_friends: [#<User id: 1, friended_to: 19>, #<User id: 18, friended_to: 19>, ...], users_follows: [{"followable_id"=>935, "follower_id"=>19}, {"followable_id"=>936, "follower_id"=>19}, {"followable_id"=>938, "follower_id"=>19}, ...]>,
+ ```
+	
+</details>
 	
 #### self.instaload(sql, table_name: nil, relied_on: false, dont_return: false)
 A method used to prepare data for the instaload_sql method. It returns a hash of options.
@@ -469,6 +515,9 @@ v3.0.6
 - added some debug logs for the instaload configuration
 - changed how variables are set for ActiveRecord objects, I gave up on figuring out what ActiveRecord is doing for *the most part* and i now just do a eval("self.#{parameter}=value") type deal. Works well. Allows you to override relations when doing polymorphic stuff which is a pretty big use case.
 - I am thinking of changing how arrays are handled as that is really the only postgresql based dependency here and that will allow the library to open up to other databases. Issue is all the code I have already written in my app dependant on such things.
+
+3.0.24
+- changed how questionable_attribute_set works again, this time by using attr_accessors on the singleton class. Seems to paper over the default reflections nicely which has been a huge issue. They use this weird delegate thing which has been throwing me off. Anyway, no more evals which is nice. This fixed an issue with dynamic attach one-to-many relations.
 
 ## Questions
 - Q: does the name of a sql operation have anything to do with prepared statements?
