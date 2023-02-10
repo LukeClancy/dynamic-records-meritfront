@@ -1,7 +1,7 @@
 require "dynamic-records-meritfront/version"
 require 'hashid/rails'
 
-#this file contains multiple classes which should honestly be split up
+#this file contains multiple classes which should honestly be split up.
 
 module DynamicRecordsMeritfront
     extend ActiveSupport::Concern
@@ -87,12 +87,10 @@ module DynamicRecordsMeritfront
             Time => ActiveModel::Type::Time,
             Float => ActiveModel::Type::Float,
 		NilClass => ActiveModel::Type::Boolean,
-            Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) }
+            Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) } #this one was a mistake
         }
 
         def convert_to_query_attribute(name, v)
-            #yes its dumb I know dont look at me look at rails
-
             # https://stackoverflow.com/questions/40407700/rails-exec-query-bindings-ignored
             # binds = [ ActiveRecord::Relation::QueryAttribute.new(
             # 	"id", 6, ActiveRecord::Type::Integer.new
@@ -294,8 +292,8 @@ module DynamicRecordsMeritfront
 
         self.dynamic_reflections ||= []
         dyna = dynamic_reflections.map{|dr|
-            self.method(dr.to_sym).call()
-        }
+            [dr, self.method(dr.to_sym).call()]
+        }.to_h
 
         if dyna.any?
             "#<#{self.class} #{inspection} | #{dyna.to_s}>"
@@ -954,8 +952,9 @@ module DynamicRecordsMeritfront
 
     #just for ease of use
     def headache_preload(records, associations)
-            self.class.headache_preload(records, associations)
+        self.class.headache_preload(records, associations)
     end
+
     def safe_increment(col, val) #also used in follow, also used in comment#kill
         self.class.where(id: self.id).update_all("#{col} = #{col} + #{val}")
     end
