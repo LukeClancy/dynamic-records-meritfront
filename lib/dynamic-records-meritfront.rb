@@ -22,7 +22,7 @@ module DynamicRecordsMeritfront
         #Note we defined here as it breaks early on as Rails.application returns nil
         PROJECT_NAME = Rails.application.class.to_s.split("::").first.to_s.downcase
         DYNAMIC_SQL_RAW = true
-
+        attr_accessor :dynamic_reflections
     end
 
     class DynamicSqlVariables
@@ -86,7 +86,7 @@ module DynamicRecordsMeritfront
             DateTime => ActiveModel::Type::DateTime,
             Time => ActiveModel::Type::Time,
             Float => ActiveModel::Type::Float,
-            NilClass => ActiveModel::Type::Boolean,
+		NilClass => ActiveModel::Type::Boolean,
             Array =>  Proc.new{ |first_el_class| ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(DB_TYPE_MAPS[first_el_class].new) }
         }
 
@@ -106,11 +106,7 @@ module DynamicRecordsMeritfront
 
             type = DB_TYPE_MAPS[v.class]
             if type.nil?
-                # if v.class == NilClass
-                #     raise StandardError.new("")
-                # else
-                    raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for ApplicationRecord#headache_sql")
-                # end
+                raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for ApplicationRecord#headache_sql")
             elsif type.class == Proc
                 a = v[0]
                 # if a.nil?
@@ -168,34 +164,85 @@ module DynamicRecordsMeritfront
 
     def questionable_attribute_set(atr, value, as_default: false, push: false)
         #this is needed on initalization of a new variable after the actual thing has been made already.
+        #this is used for attaching records to other records in one-to-one or one-to-many
 
-        #note that the below is the value lookup for ActiveModel, but values seems to have all the database columns
-        #in it anyways
-        #
-        # def key?(name)
-        #     (values.key?(name) || types.key?(name) || @attributes.key?(name)) && self[name].initialized?
-        # end
-        raise StandardError.new('bad options') if as_default and push
-        if as_default
-            unless self.respond_to? atr
-                #make sure its accesible in some way
-                values = @attributes.instance_variable_get(:@values)
-                if not values.keys.include?(atr)
-                    values[atr] = value
-                end
-            end
-        else
-            #no getter/setter methodsout, probably catches missing methods and then redirects to attributes. Lots of magic.
-            #   After multiple attempts, I gave up, so now we use eval. I guess I cant be too mad about magic as
-            #   that seems to be my bread and butter. Hope eval doesnt make it go too slow. Guess everything is evaled
-            #   on some level though?
-            s = self    #afraid self will be a diffrent self in eval. Possibly depending on parser. IDK. Just seemed risky.
-            if push
-                eval "s.#{atr} << value"
-            else
-                eval "s.#{atr} = value"
+        #basically the way this works is by using singletons to paper over the fact that normal reflections
+        #even exist. We dont integrate at all with their patterns as they use some crazy delegation stuff
+        #that messes just about everything up.
+
+        #man i thought i was meta coding, these association people just want to see the world burn.
+
+        #keeping the old code commented for a while because this area keeps breaking and i want a log of what i have tried.
+
+        self.dynamic_reflections ||= []
+
+        unless dynamic_reflections.include?(atr.to_s)
+            self.dynamic_reflections << atr.to_s
+            singleton_class.instance_eval do 
+                attr_accessor atr.to_sym
             end
         end
+    #    # if _reflections.keys.include? atr.to_s
+    #     has_method = methods.include?(atr.to_sym)
+    #     
+    #     DevScript.ping(has_method)
+    #     override = (not(has_method) or (
+    #         _reflections.keys.include? atr.to_s
+    #         and not
+            
+    #     )
+    #     DevScript.ping(override)
+
+    #     if override
+            
+            
+    #     end
+        #elsif
+                
+        #end
+
+        if as_default
+            if self.method(atr.to_sym).call().nil?
+                self.method("#{atr}=".to_sym).call(value)
+                # DevScript.ping("atr #{atr} def #{value}")
+            end
+        elsif push
+            self.method(atr.to_sym).call().push value
+            # DevScript.ping("atr #{atr} push #{value}")
+        else
+            self.method("#{atr}=".to_sym).call(value)
+            # DevScript.ping("atr #{atr} set #{value}")
+        end
+
+#        raise StandardError.new('bad options') if as_default and push
+#        if as_default
+#            unless self.respond_to? atr
+#                #make sure its accesible in some way
+#                values = @attributes.instance_variable_get(:@values)
+#                if not values.keys.include?(atr)
+#                    values[atr] = value
+#                end
+#            end
+#        else
+#            if self.reflections.keys.include? atr.to_s
+#		
+#            else
+#                values ||= @attributes.instance_variable_get(:@values)
+#                values[atr] << value
+#                
+#            
+#            end
+#            #no getter/setter methodsout, probably catches missing methods and then redirects to attributes. Lots of magic.
+#            #   After multiple attempts, I gave up, so now we use eval. I guess I cant be too mad about magic as
+#            #   that seems to be my bread and butter. Hope eval doesnt make it go too slow. Guess everything is evaled
+#            #   on some level though?
+#            s = self    #afraid self will be a diffrent self in eval. Possibly depending on parser. IDK. Just seemed risky.
+#            if push
+#                eval "s.#{atr} << value"
+#            else
+#                eval "s.#{atr} = value"
+#            end
+#        end
 
         # atr = atr.to_s
         # setter = "#{atr}="
@@ -232,6 +279,9 @@ module DynamicRecordsMeritfront
         #basically the same as the upstream active record function (as of october 25 2022 on AR V7.0.4)
         #except that I changed self.class.attribute_names -> self.attribute_names to pick up our
         #dynamic insanity. Was this a good idea? Well I guess its better than not doing it
+
+        #I also added dynamic_reflections
+
         inspection = if defined?(@attributes) && @attributes
             self.attribute_names.filter_map do |name|
             if _has_attribute?(name)
@@ -242,7 +292,16 @@ module DynamicRecordsMeritfront
             "not initialized"
         end
 
-        "#<#{self.class} #{inspection}>"
+        self.dynamic_reflections ||= []
+        dyna = dynamic_reflections.map{|dr|
+            self.method(dr.to_sym).call()
+        }
+
+        if dyna.any?
+            "#<#{self.class} #{inspection} | #{dyna.to_s}>"
+        else
+            "#<#{self.class} #{inspection} >"
+        end
     end
 
     module ClassMethods
