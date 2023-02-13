@@ -199,18 +199,25 @@ module DynamicRecordsMeritfront
                 
         #end
 
+        # pi = atr.to_sym == :current_user_follow
+        #DevScript.ping(self.inspect) if pi
         if as_default
             if self.method(atr.to_sym).call().nil?
                 self.method("#{atr}=".to_sym).call(value)
-                # DevScript.ping("atr #{atr} def #{value}")
+                # Rails.logger.info "Y #{value.followable_type if value.respond_to? :followable_type}" if pi
             end
+            # Rails.logger.info "#{atr} ||= #{value}" if pi
         elsif push
             self.method(atr.to_sym).call().push value
+         #   Rails.logger.info #{atr} << #{value}" if pi
             # DevScript.ping("atr #{atr} push #{value}")
         else
+            #out =
             self.method("#{atr}=".to_sym).call(value)
+            # Rails.logger.info "[#{self.class.to_s} #{self.id}].#{atr} -> #{out.inspect}" if pi
             # DevScript.ping("atr #{atr} set #{value}")
         end
+        #Rails.logger.info self.inspect if pi
 
 #        raise StandardError.new('bad options') if as_default and push
 #        if as_default
@@ -291,14 +298,14 @@ module DynamicRecordsMeritfront
         end
 
         self.dynamic_reflections ||= []
-        dyna = dynamic_reflections.map{|dr|
+        dyna = self.dynamic_reflections.map{|dr|
             [dr, self.method(dr.to_sym).call()]
         }.to_h
 
-        if dyna.any?
+        if dyna.keys.any?
             "#<#{self.class} #{inspection} | #{dyna.to_s}>"
         else
-            "#<#{self.class} #{inspection} >"
+            "#<#{self.class} #{inspection}>"
         end
     end
 
@@ -661,14 +668,22 @@ module DynamicRecordsMeritfront
             #formatting options
             for insta in insta_array
                 if insta[:base_name]
-                    if insta[:as]
-                        Rails.logger.debug "#{insta[:table_name]} as #{insta[:as]} -> #{insta[:base_name]}"
-                    else
-                        Rails.logger.debug "#{insta[:table_name]} -> #{insta[:base_name]}"
-                    end
                     #in this case, 'as' is meant as to what pseudonym to dynamicly attach it as
-                    dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
+                    n_attached = dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
                         one_to_one: insta[:one_to_one], as: insta[:as])
+
+                    if Rails.logger.level <= 1
+                        tn = insta[:table_name]
+                        bn = insta[:base_name]
+                        tc = ret_hash[tn].count
+                        btc = ret_hash[bn].count
+
+                        if insta[:as]
+                            Rails.logger.debug "#{n_attached} attached from #{tn}(#{tc}) as #{insta[:as]} -> #{bn}(#{btc})"
+                        else
+                            Rails.logger.debug "#{n_attached} attached from #{tn}(#{tc}) -> #{bn}(#{btc})"
+                        end
+                    end
                 elsif insta[:as]
                     Rails.logger.debug "#{insta[:table_name]} as #{insta[:as]}"
                     #in this case, the idea is more polymorphic in nature. unless they are confused and just want to rename the table (this can be done with
@@ -789,7 +804,7 @@ module DynamicRecordsMeritfront
             base_arr = instaload_sql_output[base_name]
             
             #return if there is nothing for us to attach to.
-            return if base_arr.nil? or not base_arr.any?
+            return 0 if base_arr.nil? or not base_arr.any?
 
             #set variables for neatness and so we dont compute each time
             #	base class information
@@ -814,7 +829,7 @@ module DynamicRecordsMeritfront
 
             #make sure the attach class has something going on. We do this after the default stage
             attach_arr = instaload_sql_output[attach_name]
-            return if attach_arr.nil? or not attach_arr.any?
+            return 0 if attach_arr.nil? or not attach_arr.any?
             
             #   attach class information
             attach_class = attach_arr.first.class
@@ -833,9 +848,16 @@ module DynamicRecordsMeritfront
             end
 
             #return an id->object hash for the base table for better access
-            h = base_arr.map{|o| 
-                [base_on.call(o), o]
-            }.to_h
+            h = {}
+            duplicates_base = Set[]
+            for base_rec in base_arr
+                bo = base_on.call(base_rec)
+                if h[bo]
+                    duplicates_base << bo
+                else
+                    h[bo] = base_rec
+                end
+            end
             
             #decide on the method of getting the matching id for the attach table
             unless attach_on
@@ -880,20 +902,38 @@ module DynamicRecordsMeritfront
             #	1. match base id to the attach id (both configurable)
             #	2. cancel out if there is no match
             #	3. otherwise add to the base object.
-            attach_arr.each{|attach|
-                out = attach_on.call(attach) #you can use null to escape the vals
-                if out.nil?
+            x = 0
+
+            attach_arr.each{|attach_rec|
+                #we have it plural in case it attaches to multiple, for example a user can belong to many post-cards. Yes, this
+                #was a bug. In order to solve it you have to do some sort of 'distinct' or 'group' sql.
+                
+                attachment_keys = attach_on.call(attach_rec) #you can use null to escape the vals
+                
+                if attachment_keys.nil?
                     Rails.logger.debug "attach_on proc output (which compares to the base_on proc) is outputting nil, this could be a problem depending on your use-case."
+                elsif not attachment_keys.kind_of? Array
+                    attachment_keys = [attachment_keys]
                 end
-                if out
-                    base = h[out] #it is also escaped if no base element is found
-                    if base
-                        add_to_base.call(base, attach)
+                
+                if attachment_keys and attachment_keys.any?
+                    for ak in attachment_keys
+                        base_rec = h[ak] #it is also escaped if no base element is found
+                        if base_rec
+                            dupl = duplicates_base.include? ak
+                            if dupl
+                                Rails.logger.warn "WARNING in #{attach_name} -> #{base_name}. Duplicate base_on key being utilized (this is usually in error). Only one base record will have an attachment. For the base table, consider using GROUP BY for your id and ARRAY_AGG for the base_on column."
+                                Rails.logger.warn "base_on key: #{ak.to_s}"
+                            end
+                            
+                            x += 1 unless dupl
+                            add_to_base.call(base_rec, attach_rec)
+                        end
                     end
                 end
             }
 
-            return attach_arr
+            return x
         end
         alias swiss_attach dynamic_attach
 
