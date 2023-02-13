@@ -526,6 +526,39 @@ v3.0.6
 - A: We set the location of where you called the function as the default name for easy debugging. Its not an error, we just take some info from the stacktrace. It also includes the method name which can provide some insite into what the query is doing. Makes logs alot nicer to look at.
 - Q: Whats MeritFront?
 - A: I am making a social media platform
+- Q: Inspect on user records doesn't seem to work properly
+- A: inspect is overwritten by many diffrent libraries, in terms of devise for example, they override our override of active record's inspect. The best way to deal with this is to look at the source location of these methods and bring them together (user.method(:inspect).source_location). In my case with devise, i ended up with this in the user record:
+```ruby
+	def inspect
+		#this is the same as the dynamic records inspect execpt i also melded together some of the
+		#devise stuff to keep passwords etc safe
+
+		inspection = if defined?(@attributes) && @attributes
+			self.attribute_names.filter_map do |name|
+				if _has_attribute?(name)
+					if UNSAFE_ATTRIBUTES_FOR_SERIALIZATION.include? name.to_sym
+						"#{name}: [redacted]"
+					else
+						"#{name}: #{attribute_for_inspect(name)}"
+					end
+				end
+			end.join(", ")
+		else
+			"not initialized"
+		end
+
+		self.dynamic_reflections ||= []
+		dyna = self.dynamic_reflections.map{|dr|
+			[dr, self.method(dr.to_sym).call()]
+		}.to_h
+
+		if dyna.keys.any?
+			"#<#{self.class} #{inspection} | #{dyna.to_s}>"
+		else
+			"#<#{self.class} #{inspection}>"
+		end
+	end
+```
 	
 ## Contributing
 
