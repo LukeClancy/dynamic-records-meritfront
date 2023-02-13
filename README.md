@@ -393,7 +393,7 @@ taking the output of the instaload_sql method, this method creates relations bet
 - base_name: the name of the table we will be attaching to
 - attach_name: the name of the table that will be attached
 - base_on: put a proc here to override the matching key for the base table. Default is, for a user and post type, {|user| user.id}
-- attach_on: put a proc here to override the matching key for the attach table. Default is, for a user and post type, {|post| post.user_id}
+- attach_on: put a proc here to override the matching key for the attach table. Default is, for a user and post type, {|post| post.user_id}. Returning an array from this proc will make this object attach to base records that have one of those keys. This can be used with GROUP BY and ARRAY_AGG functions to stop duplicate rows while still attaching where needed. Think of attaching a user to a post where multiple posts can have the same user.
 - one_to_one: switches between a one-to-one relationship or not
 
 <details> 
@@ -518,6 +518,12 @@ v3.0.6
 
 3.0.24
 - changed how questionable_attribute_set works again, this time by using attr_accessors on the singleton class. Seems to paper over the default reflections nicely which has been a huge issue. They use this weird delegate thing which has been throwing me off. Anyway, no more evals which is nice. This fixed an issue with dynamic attach one-to-many relations.
+
+3.1.0
+- will try keeping breaking changes out of minor version here-on-out.
+- better debugging messages and warnings for instaload
+- returning an array in the attach_on proc will now treat each item in the array as its own attach_on key instead of all as one key. So for example you can attach one user to multiple posts, and only return one user object from the database.
+- see the dynamic_attach docs above for more on that attach_on thing.
 
 ## Questions
 - Q: does the name of a sql operation have anything to do with prepared statements?
