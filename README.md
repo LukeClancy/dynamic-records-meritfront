@@ -54,7 +54,7 @@ class ApplicationRecord < ActiveRecord::Base
 end
 ```
 
-### SQL methods
+## SQL methods
 
 Methods written for easier sql usage.
 
@@ -424,7 +424,7 @@ printed output:
 
 </details>
 	
-### Hashed Global IDS
+## Hashed Global IDS
 
 hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
 
