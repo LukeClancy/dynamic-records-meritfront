@@ -452,7 +452,9 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 ## Potential Issues
 
-- This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods if you do not. I dont have the bandwidth to help switch it elsewhere, but if you want to take charge of that, I would be more than happy to assist by answering questions an pointing out any areas that need transitioning.
+- This gem was made with a postgresql database. There will be some issues when using other databases. Let me know and I will help you out how I can. The main issue as far as i can tell in the transition will be with
+	1. dynamic_sql arrays. I assumed going into this that prepared statements were generated when the sql or name of the sql changed *at all*. This is not true, prepared statements are generated based on the underlying logical flow of the request. Because of this I was treating List types as postgresql array data types. Instead I should of converted them to ($1,$2,$3,$4,...etc) strings. This change would make them act similarly to how Lists of Lists are treated currently. This change would make necessary a major version change. There would also need to be an option to roll back to postgresql arrays on a case by case basis for backwards compatibility.
+	2. instaload_sql. The instaload_sql request has hardcoded sql in it that has not been tested on other databases. This may be especially problematic due to the use of the json data-type.
 - If you return a password column (for example) as pwd, this gem will accept that. That would mean that the password could me accessed as model.pwd. This is cool - until all passwords are getting logged in production servers. So be wary of accessing, storing, and logging of sensative information. Active Record has in built solutions for this type of data, as long as you dont change the column name. This gem is a sharp knife, its very versitile, but its also, you know, sharp.
 	
 ## Changelog
@@ -535,7 +537,7 @@ v3.0.6
 - Q: The default name of my sql statements looks like a stack trace? Whats going on?
 - A: We set the location of where you called the function as the default name for easy debugging. Its not an error, we just take some info from the stacktrace. It also includes the method name which can provide some insite into what the query is doing. Makes logs alot nicer to look at.
 - Q: Whats MeritFront?
-- A: I am making a social media platform
+- A: I am making a social media platform. See meritfront.com, Its soft launched.
 - Q: Inspect on user records doesn't seem to work properly
 - A: inspect is overwritten by many diffrent libraries, in terms of devise for example, they override our override of active record's inspect. The best way to deal with this is to look at the source location of these methods and bring them together (user.method(:inspect).source_location). In my case with devise, i ended up with this in the user record:
 ```ruby
