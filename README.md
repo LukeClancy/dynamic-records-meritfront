@@ -368,6 +368,10 @@ A method used to prepare data for the instaload_sql method. It returns a hash of
 - table_name: sets the name of the temporary postgresql table. This can then be used in further instaload sql snippets.
 - relied_on: will make it so other instaload sql snippets can reference this table (it makes it use posrgresql's WITH operator)
 - dont_return: when used with relied_on makes it so that this data is not returned to rails from the database.
+- base_on: for relations, a proc describing how to attach to the base table
+- base_name: for relations, the table name for the table to attach to
+- attach_on: for relations, a proc describing how this table attaches to the the base table
+- one_to_one: for relations, a boolean that flips one-to-many/one-to-one (default false)
 
 note that the order of the instaload methods matter depending on how they reference eachother.
 <details>
