@@ -5,8 +5,7 @@ Dyanmic Records Meritfront helps extend active record functionality to make it m
 2. communicate with the backend more effectively with sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have dynamic sql queries that are hard to convert properly into ruby.
 3. add other helper methods to work with your database, such as checking if relations exist, or if a migration has been run.
 
-Note that postgres is currently a requirement for using arrays in this gem. If it becomes an issue send me a pull request or an issue or somethin.
-Also note that the gem has not been tested outside of postgres.
+Note that you will have issues using the gem outside of postgres. These issue can be fixed, and I am considering a major version update to fix them. Let me know and I will probably do it.
 
 ## Basic Examples
 ```ruby
@@ -55,7 +54,7 @@ class ApplicationRecord < ActiveRecord::Base
 end
 ```
 
-### SQL methods
+## SQL methods
 
 Methods written for easier sql usage.
 
@@ -368,6 +367,10 @@ A method used to prepare data for the instaload_sql method. It returns a hash of
 - table_name: sets the name of the temporary postgresql table. This can then be used in further instaload sql snippets.
 - relied_on: will make it so other instaload sql snippets can reference this table (it makes it use posrgresql's WITH operator)
 - dont_return: when used with relied_on makes it so that this data is not returned to rails from the database.
+- base_on: for relations, a proc describing how to attach to the base table
+- base_name: for relations, the table name for the table to attach to
+- attach_on: for relations, a proc describing how this table attaches to the the base table
+- one_to_one: for relations, a boolean that flips one-to-many/one-to-one (default false)
 
 note that the order of the instaload methods matter depending on how they reference eachother.
 <details>
@@ -393,7 +396,7 @@ taking the output of the instaload_sql method, this method creates relations bet
 - base_name: the name of the table we will be attaching to
 - attach_name: the name of the table that will be attached
 - base_on: put a proc here to override the matching key for the base table. Default is, for a user and post type, {|user| user.id}
-- attach_on: put a proc here to override the matching key for the attach table. Default is, for a user and post type, {|post| post.user_id}
+- attach_on: put a proc here to override the matching key for the attach table. Default is, for a user and post type, {|post| post.user_id}. Returning an array from this proc will make this object attach to base records that have one of those keys. This can be used with GROUP BY and ARRAY_AGG functions to stop duplicate rows while still attaching where needed. Think of attaching a user to a post where multiple posts can have the same user.
 - one_to_one: switches between a one-to-one relationship or not
 
 <details> 
@@ -421,7 +424,7 @@ printed output:
 
 </details>
 	
-### Hashed Global IDS
+## Hashed Global IDS
 
 hashed global ids look like this: "gid://meritfront/User/K9YI4K". They also have an optional tag so it can also look like "gid://meritfront/User/K9YI4K@user_image". They are based on global ids.
 
@@ -448,7 +451,9 @@ See the hashid-rails gem for more (https://github.com/jcypret/hashid-rails). Als
 
 ## Potential Issues
 
-- This gem was made with a postgresql database. This could cause a lot of issues with the sql-related methods if you do not. I dont have the bandwidth to help switch it elsewhere, but if you want to take charge of that, I would be more than happy to assist by answering questions an pointing out any areas that need transitioning.
+- This gem was made with a postgresql database. There will be some issues when using other databases. Let me know and I will help you out how I can. The main issue as far as i can tell in the transition will be with
+	1. dynamic_sql arrays. I assumed going into this that prepared statements were generated when the sql or name of the sql changed *at all*. This is not true, prepared statements are generated based on the underlying logical flow of the request. Because of this I was treating List types as postgresql array data types. Instead I should of converted them to ($1,$2,$3,$4,...etc) strings. This change would make them act similarly to how Lists of Lists are treated currently. This change would make necessary a major version change. There would also need to be an option to roll back to postgresql arrays on a case by case basis for backwards compatibility.
+	2. instaload_sql. The instaload_sql request has hardcoded sql in it that has not been tested on other databases. This may be especially problematic due to the use of the json data-type.
 - If you return a password column (for example) as pwd, this gem will accept that. That would mean that the password could me accessed as model.pwd. This is cool - until all passwords are getting logged in production servers. So be wary of accessing, storing, and logging of sensative information. Active Record has in built solutions for this type of data, as long as you dont change the column name. This gem is a sharp knife, its very versitile, but its also, you know, sharp.
 	
 ## Changelog
@@ -496,7 +501,7 @@ since things may be broken already, it seemed like a good time to do this.
   - this also tells me that uniq'ing variables to decrease the number of them was a bad idea which could cause random failures.
 - functionality improvements
   - The biggest change is that names are now optional! name_modifiers is now depreciated functionality as it serves no useful purpose. Will leave in for compatibility but take out of documentation. Used to think the name was related to prepared statements. This will lead simpler ruby code.
-  - If name is left out, the name will be set to the location in your app which called the method. For example, when dynamic_sql was called from irb, the name was: "(irb):45:in `irb_binding'". This is done using stack trace functionality. In another case the name was "app/models/report.rb:364:in `refresh_db_methods'"
+  - If name is left out, the name will be set to the location in your app which called the method. For example, when dynamic_sql was called from irb, the name was: "(irb):45:in 'irb_binding'". This is done using stack trace functionality. In another case the name was "app/models/report.rb:364:in 'refresh_db_methods'"
   - dynamic_instaload_sql is now just instaload_sql. dynamic_instaload_sql has been aliased.
   - Name is optional on instaload_sql aswell
   - MultiAttributeArrays (array's of arrays) which can be passed into dynamic_sql largely for inserts/upserts will now treat symbols as an attribute name. This leads to more consise sql without running into above error.
@@ -517,10 +522,16 @@ v3.0.6
 - I am thinking of changing how arrays are handled as that is really the only postgresql based dependency here and that will allow the library to open up to other databases. Issue is all the code I have already written in my app dependant on such things.
 
 3.0.24
-- changed how questionable_attribute_set works again, this time by using attr_accessors on the singleton class. Seems to paper over the default reflections nicely which has been a huge issue. They use this weird delegate thing which has been throwing me off. Anyway, no more evals which is nice. This fixed an issue with dynamic attach one-to-many relations.
+- changed how questionable_attribute_set works again, this time by using attr_accessors on the singleton class. Seems to paper over the default reflections nicely which has been a huge issue. They use this weird delegate thing which has been throwing me off. Anyway, no more evals which is nice. This fixed an issue with dynamic attach one-to-many relation 
 
+3.1.0
+- will try keeping breaking changes out of minor version here-on-out.
+- better debugging messages and warnings for instaload
+- returning an array in the attach_on proc will now treat each item in the array as its own attach_on key instead of all as one key. So for example you can attach one user to multiple posts, and only return one user object from the database.
+- see the dynamic_attach docs above for more on that attach_on thing.
 ....
 - took out undocumented quick_safe_increment and safe_increment as they were not relevant to the gem - and fairly basic.
+
 
 ## Questions
 - Q: does the name of a sql operation have anything to do with prepared statements?
@@ -528,7 +539,7 @@ v3.0.6
 - Q: The default name of my sql statements looks like a stack trace? Whats going on?
 - A: We set the location of where you called the function as the default name for easy debugging. Its not an error, we just take some info from the stacktrace. It also includes the method name which can provide some insite into what the query is doing. Makes logs alot nicer to look at.
 - Q: Whats MeritFront?
-- A: I am making a social media platform
+- A: I am making a social media platform. See meritfront.com, Its soft launched.
 - Q: Inspect on user records doesn't seem to work properly
 - A: inspect is overwritten by many diffrent libraries, in terms of devise for example, they override our override of active record's inspect. The best way to deal with this is to look at the source location of these methods and bring them together (user.method(:inspect).source_location). In my case with devise, i ended up with this in the user record:
 ```ruby
