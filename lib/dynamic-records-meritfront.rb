@@ -78,6 +78,7 @@ module DynamicRecordsMeritfront
         DB_TYPE_MAPS = {
             String => ActiveModel::Type::String,
             Symbol => ActiveModel::Type::String,
+            ActiveSupport::SafeBuffer => ActiveModel::Type::String,
             Integer => ActiveModel::Type::BigInteger,
             BigDecimal => ActiveRecord::Type::Decimal,
             TrueClass => ActiveModel::Type::Boolean,
@@ -922,7 +923,7 @@ module DynamicRecordsMeritfront
                         if base_rec
                             dupl = duplicates_base.include? ak
                             if dupl
-                                Rails.logger.warn "WARNING in #{attach_name} -> #{base_name}. Duplicate base_on key being utilized (this is usually in error). Only one base record will have an attachment. For the base table, consider using GROUP BY for your id and ARRAY_AGG for the base_on column."
+                                Rails.logger.warn "WARNING in #{attach_name} -> #{base_name}. Duplicate base_on key being utilized (this is usually in error). Only one base record will have an attachment. For the base table, consider using GROUP BY id and ARRAY_AGG for the base_on column."
                                 Rails.logger.warn "base_on key: #{ak.to_s}"
                             end
                             
@@ -955,10 +956,11 @@ module DynamicRecordsMeritfront
                 return record
             end
         end
-
-        def quick_safe_increment(id, col, val)
-            where(id: id).update_all("#{col} = #{col} + #{val}")
-        end
+		
+		#undocumented and simple
+        #def quick_safe_increment(id, col, val)
+         #   where(id: id).update_all("#{col} = #{col} + #{val}")
+        #end
 
         
     end
@@ -995,8 +997,10 @@ module DynamicRecordsMeritfront
         self.class.headache_preload(records, associations)
     end
 
-    def safe_increment(col, val) #also used in follow, also used in comment#kill
-        self.class.where(id: self.id).update_all("#{col} = #{col} + #{val}")
-    end
+
+	#undocumented and simple
+ #   def safe_increment(col, val) #also used in follow, also used in comment#kill
+#        self.class.where(id: self.id).update_all("#{col} = #{col} + #{val}")
+  #  end
 
 end
