@@ -519,6 +519,9 @@ v3.0.6
 3.0.24
 - changed how questionable_attribute_set works again, this time by using attr_accessors on the singleton class. Seems to paper over the default reflections nicely which has been a huge issue. They use this weird delegate thing which has been throwing me off. Anyway, no more evals which is nice. This fixed an issue with dynamic attach one-to-many relations.
 
+....
+- took out undocumented quick_safe_increment and safe_increment as they were not relevant to the gem - and fairly basic.
+
 ## Questions
 - Q: does the name of a sql operation have anything to do with prepared statements?
 - A: no, the prepared statement determines uniqueness in some other way, dont worry about collisions. The only issue with prepared statements that I can determine is when you write a statement where things change every time, thus preparing potentially infinite prepared statements. This can be alleviated by using sql arguments correctly. Using arguments correctly also will stop sql injection attacks so. You know. Do it properly. Dont just hard code them into the query.
