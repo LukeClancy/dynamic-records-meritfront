@@ -798,12 +798,12 @@ module DynamicRecordsMeritfront
         def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             if Rails.logger.level <= 1
-                tn = table_name
-                bn = base_name
+                tn = table_name.to_s
+                bn = base_name.to_s
                 tc = instaload_sql_output[tn].count
                 btc = instaload_sql_output[bn].count
 
-                if insta[:as]
+                if as
                     Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} as #{as} -> #{bn}(#{n_attached}/#{btc})"
                 else
                     Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} -> #{bn}(#{n_attached}/#{btc})"
