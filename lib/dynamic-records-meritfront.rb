@@ -800,6 +800,7 @@ module DynamicRecordsMeritfront
             if Rails.logger.level <= 1
                 tn = table_name.to_s
                 bn = base_name.to_s
+                byebug
                 tc = instaload_sql_output[tn].count
                 btc = instaload_sql_output[bn].count
 
