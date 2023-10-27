@@ -824,12 +824,20 @@ module DynamicRecordsMeritfront
         def _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             #as just lets it attach us anywhere on the base class, and not just as the attach_name.
             #Can be useful in polymorphic situations, otherwise may lead to confusion.
+            
+            #oh the errors
+            base_name = base_name.to_s
+            attach_name = attach_name.to_s
+
             as ||= attach_name
 
             base_arr = instaload_sql_output[base_name]
             
             #return if there is nothing for us to attach to.
-            return 0 if base_arr.nil? or not base_arr.any?
+            if base_arr.nil? or not base_arr.any?
+                Rails.logger.info("unable to find base attach table " + base_name)
+                return 0
+            end
 
             #set variables for neatness and so we dont compute each time
             #	base class information
@@ -855,7 +863,11 @@ module DynamicRecordsMeritfront
 
             #make sure the attach class has something going on. We do this after the default stage
             attach_arr = instaload_sql_output[attach_name]
-            return 0 if attach_arr.nil? or not attach_arr.any?
+            
+            if attach_arr.nil? or not attach_arr.any?
+                Rails.logger.info("unable to find attach table " + attach_name)
+                return 0
+            end
             
             #   attach class information
             attach_class = attach_arr.first.class
