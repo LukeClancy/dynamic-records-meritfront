@@ -681,21 +681,8 @@ module DynamicRecordsMeritfront
             for insta in insta_array
                 if insta[:base_name]
                     #in this case, 'as' is meant as to what pseudonym to dynamicly attach it as
-                    n_attached = dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
+                    dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
                         one_to_one: insta[:one_to_one], as: insta[:as])
-
-                    if Rails.logger.level <= 1
-                        tn = insta[:table_name]
-                        bn = insta[:base_name]
-                        tc = ret_hash[tn].count
-                        btc = ret_hash[bn].count
-
-                        if insta[:as]
-                            Rails.logger.debug "#{n_attached} attached from #{tn}(#{tc}) as #{insta[:as]} -> #{bn}(#{btc})"
-                        else
-                            Rails.logger.debug "#{n_attached} attached from #{tn}(#{tc}) -> #{bn}(#{btc})"
-                        end
-                    end
                 elsif insta[:as]
                     Rails.logger.debug "#{insta[:table_name]} as #{insta[:as]}"
                     #in this case, the idea is more polymorphic in nature. unless they are confused and just want to rename the table (this can be done with
@@ -809,6 +796,24 @@ module DynamicRecordsMeritfront
         end
 
         def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
+            n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
+            if Rails.logger.level <= 1
+                tn = table_name
+                bn = base_name
+                tc = instaload_sql_output[tn].count
+                btc = instaload_sql_output[bn].count
+
+                if insta[:as]
+                    Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} as #{as} -> #{bn}(#{n_attached}/#{btc})"
+                else
+                    Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} -> #{bn}(#{n_attached}/#{btc})"
+                end
+            end
+            return n_attached
+        end
+
+
+        def _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             #as just lets it attach us anywhere on the base class, and not just as the attach_name.
             #Can be useful in polymorphic situations, otherwise may lead to confusion.
             as ||= attach_name

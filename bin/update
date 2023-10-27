@@ -51,5 +51,8 @@ puts `git commit -m 'minor changes to version #{version_new}'`
 puts "_______________________________________________"
 puts "INSTALL GEM LOCALLY"
 puts `bundle exec rake install`
+puts "note if you cant install in your project u prob have different ruby versions for the project and this folder."
+puts "if in that case and using rbenv, change your global ruby version under ~/.rbenv/version or your local by adding"
+puts "somthing similar in a .ruby_version file. Not using .rbenv? Add ur instructions here"
 puts "_______________________________________________"
 puts "info: write 'bundle exec rake release' to release the current version to the interwebz"
