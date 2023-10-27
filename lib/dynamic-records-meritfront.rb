@@ -656,7 +656,6 @@ module DynamicRecordsMeritfront
 #{ _dynamic_instaload_handle_with_statements(with_statements) if with_statements.any? }
 #{ _dynamic_instaload_union(insta_array)}
 }
-            byebug
             insta_array = insta_array.select{|ar| not ar[:dont_return]}
             ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
             opts[:raw] = true
@@ -676,11 +675,13 @@ module DynamicRecordsMeritfront
                 ret_hash[table_name].push dynamic_init(klass, parsed)
             }
 
-            insta_array = insta_array.map{|a|a.delete(:sql); next a} #better for debuggin and we dont need it anymore
+            insta_array.each{|a| a.delete(:sql)}
             
             #formatting options
             for insta in insta_array
+                DevScript.ping insta.to_s
                 if insta[:base_name]
+                    DevScript.ping insta[:base_name]
                     #in this case, 'as' is meant as to what pseudonym to dynamicly attach it as
                     dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
                         one_to_one: insta[:one_to_one], as: insta[:as])
