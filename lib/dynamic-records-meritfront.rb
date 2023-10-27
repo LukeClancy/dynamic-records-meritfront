@@ -801,7 +801,7 @@ module DynamicRecordsMeritfront
             n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: base_on,
                 attach_on: attach_on, one_to_one: one_to_one, as: as)
             
-                if Rails.logger.level <= 1
+            if Rails.logger.level <= 1
                 #variable names are bad cause I switched them here
                 tn = base_name.to_s
                 an = attach_name.to_s
@@ -835,6 +835,7 @@ module DynamicRecordsMeritfront
             #	base class information
             base_class = base_arr.first.class
             base_class_is_hash = base_class <= Hash
+            DevScript.ping('base class: ' + base_class)
             
             #variable accessors and defaults. Make sure it only sets if not defined already as
             #the 'as' option allows us to override to what value it actually gets set in the end, 
@@ -862,6 +863,7 @@ module DynamicRecordsMeritfront
 
             #	default attach column info
             default_attach_col = (base_class.to_s.downcase + "_id")
+            DevScript.ping('doc', default_attach_col)
 
             #decide on the method of getting the matching id for the base table
             unless base_on
