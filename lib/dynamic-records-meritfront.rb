@@ -835,7 +835,7 @@ module DynamicRecordsMeritfront
             #	base class information
             base_class = base_arr.first.class
             base_class_is_hash = base_class <= Hash
-            DevScript.ping('base class: ' + base_class)
+            DevScript.ping('base class: ' + base_class.to_s)
             
             #variable accessors and defaults. Make sure it only sets if not defined already as
             #the 'as' option allows us to override to what value it actually gets set in the end, 
