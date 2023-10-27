@@ -799,7 +799,7 @@ module DynamicRecordsMeritfront
         def dynamic_attach(instaload_sql_output, table_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             DevScript.ping(table_name, attach_name, base_on, attach_on, one_to_one, as)
             n_attached = _dynamic_attach(instaload_sql_output, table_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            DevScript.ping(_table_name, attach_name, base_on, attach_on, one_to_one, as)
+            DevScript.ping(table_name, attach_name, base_on, attach_on, one_to_one, as)
             if Rails.logger.level <= 1
                 tn = table_name.to_s
                 an = attach_name.to_s
