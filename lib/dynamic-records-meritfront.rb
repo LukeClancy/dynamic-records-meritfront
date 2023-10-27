@@ -660,13 +660,13 @@ module DynamicRecordsMeritfront
             ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
             opts[:raw] = true
 
+            byebug
             self.dynamic_sql(name, sql, opts).rows.each{|row|
                 #need to pre-parsed as it has a non-normal output.
                 table_name = row[2]
                 klass = row[1].constantize
                 json = row[0]
                 parsed = JSON.parse(json)
-
                 ret_hash[table_name].push dynamic_init(klass, parsed)
             }
 
