@@ -797,31 +797,6 @@ module DynamicRecordsMeritfront
         end
 
         def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            
-            n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: base_on,
-                attach_on: attach_on, one_to_one: one_to_one, as: as)
-            
-            if Rails.logger.level <= 1
-                #variable names are bad cause I switched them here
-                tn = base_name.to_s
-                an = attach_name.to_s
-                x = instaload_sql_output[an]
-                y = instaload_sql_output[tn]
-                raise StandardError.new("table #{an} does not exist.") if x.nil?
-                raise StandardError.new("table #{tn} does not exist.") if y.nil?
-                atc = x.count
-                tc = y.count
-                if as
-                    Rails.logger.debug "#{n_attached}/#{atc} attached from #{an} as #{as} -> #{tn}(#{n_attached}/#{tc})"
-                else
-                    Rails.logger.debug "#{n_attached}/#{atc} attached from #{an} -> #{tn}(#{n_attached}/#{tc})"
-                end
-            end
-            return n_attached
-        end
-
-
-        def _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             #as just lets it attach us anywhere on the base class, and not just as the attach_name.
             #Can be useful in polymorphic situations, otherwise may lead to confusion.
             
@@ -835,7 +810,7 @@ module DynamicRecordsMeritfront
             
             #return if there is nothing for us to attach to.
             if base_arr.nil? or not base_arr.any?
-                Rails.logger.info("unable to find base attach table " + base_name)
+                Rails.logger.warn("unable to find base attach table " + base_name)
                 return 0
             end
 
@@ -843,7 +818,6 @@ module DynamicRecordsMeritfront
             #	base class information
             base_class = base_arr.first.class
             base_class_is_hash = base_class <= Hash
-            DevScript.ping('base class: ' + base_class.to_s)
             
             #variable accessors and defaults. Make sure it only sets if not defined already as
             #the 'as' option allows us to override to what value it actually gets set in the end, 
@@ -865,7 +839,7 @@ module DynamicRecordsMeritfront
             attach_arr = instaload_sql_output[attach_name]
             
             if attach_arr.nil? or not attach_arr.any?
-                Rails.logger.info("unable to find attach table " + attach_name)
+                Rails.logger.warn("unable to find attach table " + attach_name)
                 return 0
             end
             
@@ -875,7 +849,6 @@ module DynamicRecordsMeritfront
 
             #	default attach column info
             default_attach_col = (base_class.to_s.downcase + "_id")
-            DevScript.ping('doc', default_attach_col)
 
             #decide on the method of getting the matching id for the base table
             unless base_on
@@ -971,6 +944,21 @@ module DynamicRecordsMeritfront
                     end
                 end
             }
+
+            if Rails.logger.level <= 1
+                #variable names are bad cause I switched them here
+                tn = base_name
+                an = attach_name
+                x = instaload_sql_output[an]
+                y = instaload_sql_output[tn]
+                atc = x.count
+                tc = y.count
+                if as
+                    Rails.logger.debug "#{n_attached}/#{atc} attached from #{an} as #{as} -> #{tn}(#{n_attached}/#{tc})"
+                else
+                    Rails.logger.debug "#{n_attached}/#{atc} attached from #{an} -> #{tn}(#{n_attached}/#{tc})"
+                end
+            end
 
             return x
         end
