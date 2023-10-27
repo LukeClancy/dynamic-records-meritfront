@@ -105,7 +105,7 @@ module DynamicRecordsMeritfront
 
             type = DB_TYPE_MAPS[v.class]
             if type.nil?
-                raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for ApplicationRecord#headache_sql")
+                raise StandardError.new("#{name} (of value: #{v}, class: #{v.class}) unsupported class for DynamicRecordsMeritfront#headache_sql")
             elsif type.class == Proc
                 a = v[0]
                 # if a.nil?
@@ -400,8 +400,13 @@ module DynamicRecordsMeritfront
                 if returns_nil
                     return nil
                 else
-                    raise StandardError.new("non-string class passed to ApplicationRecord#locate_hgid as the hgid_string variable")
+                    raise StandardError.new("non-string class passed to DynamicRecordsMeritfront#locate_hgid as the hgid_string variable")
                 end
+            end
+            if PROJECT_NAME == 'midflip'
+                #should be fine to take out in a month or so, just got lazy and pretty sure I am the only one using this gem.
+                #dont want to kill me jobs.
+                hgid_string = hgid_string.gsub('ApplicationRecord', 'Record')
             end
             if hgid_string.include?('@')
                 hgid_string = hgid_string.split('@')
@@ -438,7 +443,7 @@ module DynamicRecordsMeritfront
                 nil
             else
                 #stops execution as default
-                raise StandardError.new 'Not the expected class, or a subclass of ApplicationRecord if called on that.'
+                raise StandardError.new 'Not the expected class or subclass.'
             end
         end
         def get_hgid_tag(hgid_string)
@@ -654,7 +659,8 @@ module DynamicRecordsMeritfront
             insta_array = insta_array.select{|ar| not ar[:dont_return]}
             ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
             opts[:raw] = true
-            ApplicationRecord.headache_sql(name, sql, opts).rows.each{|row|
+
+            dynamic_sql(name, sql, opts).rows.each{|row|
                 #need to pre-parsed as it has a non-normal output.
                 table_name = row[2]
                 klass = row[1].constantize
@@ -708,7 +714,7 @@ module DynamicRecordsMeritfront
             m = model_with_an_id_column_and_timestamps
             ar = m.superclass
             mtname = m.table_name
-            ApplicationRecord.transaction do
+            transaction do
                 puts 'test recieving columns not normally in the record.'
                 rec = m.dynamic_sql(%Q{
                     SELECT id, 5 AS random_column from #{mtname} LIMIT 10
