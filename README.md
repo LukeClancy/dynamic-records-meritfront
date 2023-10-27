@@ -536,7 +536,6 @@ v3.0.6
 - warning messages for dynamic_attach. to_s'd any provided table_names for ease-of-use.
 - logging info for dynamic_attach outside of instaload.
 - fixed an error where instaload only worked with ApplicationRecord abstract_class. Now works on anything thats a subclass of ActiveRecord::Base
-- wow
 
 
 ## Questions
