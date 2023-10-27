@@ -797,8 +797,11 @@ module DynamicRecordsMeritfront
         end
 
         def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            if Rails.logger.level <= 1
+            
+            n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: base_one,
+                attach_on: attach_on, one_to_one: one_to_one, as: as)
+            
+                if Rails.logger.level <= 1
                 #variable names are bad cause I switched them here
                 tn = base_name.to_s
                 an = attach_name.to_s
