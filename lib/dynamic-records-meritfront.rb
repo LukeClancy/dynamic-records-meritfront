@@ -796,35 +796,35 @@ module DynamicRecordsMeritfront
             end
         end
 
-        def dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            DevScript.ping(base_name, attach_name, base_on, attach_on, one_to_one, as)
-            n_attached = _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
-            DevScript.ping(base_name, attach_name, base_on, attach_on, one_to_one, as)
+        def dynamic_attach(instaload_sql_output, table_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
+            DevScript.ping(table_name, attach_name, base_on, attach_on, one_to_one, as)
+            n_attached = _dynamic_attach(instaload_sql_output, table_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
+            DevScript.ping(_table_name, attach_name, base_on, attach_on, one_to_one, as)
             if Rails.logger.level <= 1
                 tn = table_name.to_s
-                bn = base_name.to_s
+                an = attach_name.to_s
                 x = instaload_sql_output[tn]
-                y = instaload_sql_output[bn].count
+                y = instaload_sql_output[an]
                 raise StandardError.new("table #{tn} does not exist.") if x.nil?
-                raise StandardError.new("table #{bn} does not exist.") if y.nil?
+                raise StandardError.new("table #{an} does not exist.") if y.nil?
                 tc = x.count
-                btc = y.count
+                atc = y.count
                 if as
-                    Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} as #{as} -> #{bn}(#{n_attached}/#{btc})"
+                    Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} as #{as} -> #{an}(#{n_attached}/#{atc})"
                 else
-                    Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} -> #{bn}(#{n_attached}/#{btc})"
+                    Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} -> #{an}(#{n_attached}/#{atc})"
                 end
             end
             return n_attached
         end
 
 
-        def _dynamic_attach(instaload_sql_output, base_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
+        def _dynamic_attach(instaload_sql_output, table_name, attach_name, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
             #as just lets it attach us anywhere on the base class, and not just as the attach_name.
             #Can be useful in polymorphic situations, otherwise may lead to confusion.
             as ||= attach_name
 
-            base_arr = instaload_sql_output[base_name]
+            base_arr = instaload_sql_output[table_name]
             
             #return if there is nothing for us to attach to.
             return 0 if base_arr.nil? or not base_arr.any?
@@ -945,7 +945,7 @@ module DynamicRecordsMeritfront
                         if base_rec
                             dupl = duplicates_base.include? ak
                             if dupl
-                                Rails.logger.warn "WARNING in #{attach_name} -> #{base_name}. Duplicate base_on key being utilized (this is usually in error). Only one base record will have an attachment. For the base table, consider using GROUP BY id and ARRAY_AGG for the base_on column."
+                                Rails.logger.warn "WARNING in #{attach_name} -> #{table_name}. Duplicate base_on key being utilized (this is usually in error). Only one base record will have an attachment. For the base table, consider using GROUP BY id and ARRAY_AGG for the base_on column."
                                 Rails.logger.warn "base_on key: #{ak.to_s}"
                             end
                             
