@@ -682,7 +682,8 @@ module DynamicRecordsMeritfront
                 DevScript.ping insta.to_s
                 if insta[:base_name]
                     #in this case, 'as' is meant as to what pseudonym to dynamicly attach it as
-                    dynamic_attach(ret_hash, insta[:table_name], insta[:base_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
+                    #we are attaching to the base table. Variable could of been less confusing. My bad.
+                    dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
                         one_to_one: insta[:one_to_one], as: insta[:as])
                 elsif insta[:as]
                     Rails.logger.debug "#{insta[:table_name]} as #{insta[:as]}"
