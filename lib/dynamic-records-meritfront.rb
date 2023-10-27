@@ -656,6 +656,7 @@ module DynamicRecordsMeritfront
 #{ _dynamic_instaload_handle_with_statements(with_statements) if with_statements.any? }
 #{ _dynamic_instaload_union(insta_array)}
 }
+            byebug
             insta_array = insta_array.select{|ar| not ar[:dont_return]}
             ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
             opts[:raw] = true
@@ -800,10 +801,12 @@ module DynamicRecordsMeritfront
             if Rails.logger.level <= 1
                 tn = table_name.to_s
                 bn = base_name.to_s
-                byebug
-                tc = instaload_sql_output[tn].count
-                btc = instaload_sql_output[bn].count
-
+                x = instaload_sql_output[tn]
+                y = instaload_sql_output[bn].count
+                raise StandardError.new("table #{tn} does not exist?") if x.nil?
+                raise StandardError.new("table #{bn} does not exist?") if y.nil?
+                tc = x.count
+                btc = y.count
                 if as
                     Rails.logger.debug "#{n_attached}/#{tc} attached from #{tn} as #{as} -> #{bn}(#{n_attached}/#{btc})"
                 else
