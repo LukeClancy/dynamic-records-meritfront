@@ -532,7 +532,7 @@ v3.0.6
 ....
 - took out undocumented quick_safe_increment and safe_increment as they were not relevant to the gem - and fairly basic.
 
-3.1.26
+3.1.28
 - warning messages for dynamic_attach. to_s'd any provided table_names for ease-of-use.
 - logging info for dynamic_attach outside of instaload.
 - fixed an error where instaload only worked with ApplicationRecord abstract_class. Now works on anything thats a subclass of ActiveRecord::Base

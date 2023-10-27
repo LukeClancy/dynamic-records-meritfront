@@ -810,7 +810,7 @@ module DynamicRecordsMeritfront
             
             #return if there is nothing for us to attach to.
             if base_arr.nil? or not base_arr.any?
-                Rails.logger.warn("unable to find base attach table " + base_name)
+                Rails.logger.warn("unable to find base table " + base_name)
                 return 0
             end
 
@@ -839,7 +839,7 @@ module DynamicRecordsMeritfront
             attach_arr = instaload_sql_output[attach_name]
             
             if attach_arr.nil? or not attach_arr.any?
-                Rails.logger.warn("unable to find attach table " + attach_name)
+                Rails.logger.warn("unable to find attaching table " + attach_name)
                 return 0
             end
             
@@ -946,17 +946,10 @@ module DynamicRecordsMeritfront
             }
 
             if Rails.logger.level <= 1
-                #variable names are bad cause I switched them here
-                tn = base_name
-                an = attach_name
-                x = instaload_sql_output[an]
-                y = instaload_sql_output[tn]
-                atc = x.count
-                tc = y.count
                 if as
-                    Rails.logger.debug "#{n_attached}/#{atc} attached from #{an} as #{as} -> #{tn}(#{n_attached}/#{tc})"
+                    Rails.logger.debug "#{x}/#{attach_arr.count} attached from #{attach_name} as #{as} -> #{base_name}(#{x}/#{base_arr.count})"
                 else
-                    Rails.logger.debug "#{n_attached}/#{atc} attached from #{an} -> #{tn}(#{n_attached}/#{tc})"
+                    Rails.logger.debug "#{x}/#{attach_arr.count} attached from #{attach_name} -> #{base_name}(#{x}/#{base_arr.count})"
                 end
             end
 
