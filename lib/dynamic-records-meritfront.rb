@@ -660,7 +660,7 @@ module DynamicRecordsMeritfront
             ret_hash = insta_array.map{|ar| [ar[:table_name].to_s, []]}.to_h
             opts[:raw] = true
 
-            dynamic_sql(name, sql, opts).rows.each{|row|
+            self.dynamic_sql(name, sql, opts).rows.each{|row|
                 #need to pre-parsed as it has a non-normal output.
                 table_name = row[2]
                 klass = row[1].constantize
