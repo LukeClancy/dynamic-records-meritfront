@@ -681,9 +681,8 @@ module DynamicRecordsMeritfront
             for insta in insta_array
                 DevScript.ping insta.to_s
                 if insta[:base_name]
-                    DevScript.ping insta[:base_name]
                     #in this case, 'as' is meant as to what pseudonym to dynamicly attach it as
-                    dynamic_attach(ret_hash, insta[:base_name], insta[:table_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
+                    dynamic_attach(ret_hash, insta[:table_name], insta[:base_name], base_on: insta[:base_on], attach_on: insta[:attach_on],
                         one_to_one: insta[:one_to_one], as: insta[:as])
                 elsif insta[:as]
                     Rails.logger.debug "#{insta[:table_name]} as #{insta[:as]}"
@@ -804,8 +803,8 @@ module DynamicRecordsMeritfront
                 bn = base_name.to_s
                 x = instaload_sql_output[tn]
                 y = instaload_sql_output[bn].count
-                raise StandardError.new("table #{tn} does not exist?") if x.nil?
-                raise StandardError.new("table #{bn} does not exist?") if y.nil?
+                raise StandardError.new("table #{tn} does not exist.") if x.nil?
+                raise StandardError.new("table #{bn} does not exist.") if y.nil?
                 tc = x.count
                 btc = y.count
                 if as
