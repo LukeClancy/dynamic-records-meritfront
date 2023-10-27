@@ -809,8 +809,11 @@ module DynamicRecordsMeritfront
             base_arr = instaload_sql_output[base_name]
             
             #return if there is nothing for us to attach to.
-            if base_arr.nil? or not base_arr.any?
-                Rails.logger.warn("unable to find base table " + base_name)
+            if base_arr.nil?
+                Rails.logger.error("base table " + base_name + " was not set")
+                return 0
+            elsif not base_arr.any?
+                Rails.logger.debug("no items in base table " + base_name)
                 return 0
             end
 
@@ -838,8 +841,11 @@ module DynamicRecordsMeritfront
             #make sure the attach class has something going on. We do this after the default stage
             attach_arr = instaload_sql_output[attach_name]
             
-            if attach_arr.nil? or not attach_arr.any?
-                Rails.logger.warn("unable to find attaching table " + attach_name)
+            if attach_arr.nil?
+                Rails.logger.error("attaching table " + attach_name + " was not set")
+                return 0
+            elsif not attach_arr.any?
+                Rails.logger.debug("no items in attach table " + attach_name)
                 return 0
             end
             
