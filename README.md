@@ -538,6 +538,9 @@ v3.0.6
 - fixed an error where instaload only worked with ApplicationRecord abstract_class. Now works on anything thats a subclass of ActiveRecord::Base
 - wow
 
+3.2
+- Updates so the latest version of the pg gem and rails works with the latest version of postgresql
+
 
 ## Questions
 - Q: does the name of a sql operation have anything to do with prepared statements?
