@@ -477,7 +477,6 @@ module DynamicRecordsMeritfront
         # - multi_query allows more than one query (you can seperate an insert and an update with ';' I dont know how else to say it.)
         #		this disables other options (except name_modifiers). Not sure how it effects prepared statements. Its a fairly useless
         #		command as you can do multiple queries anyway with 'WITH' statements and also gain the other options.
-        # - async does what it says but I haven't used it yet so. Probabably doesn't work
         # - raw switches between using a Hash or a ActiveRecord::Response object when used on a abstract class
             args << {} unless args[-1].kind_of? Hash
             if args.length == 3
@@ -501,7 +500,6 @@ module DynamicRecordsMeritfront
             name_modifiers ||= []
             prepare = opts.delete(:prepare) != false
             multi_query = opts.delete(:multi_query) == true
-            async = opts.delete(:async) == true
             params = opts
 
                 #unique value hash cuts down on the number of repeated arguments like in an update or insert statement
@@ -557,7 +555,7 @@ module DynamicRecordsMeritfront
                         end
                     end
                     sql_vals = var_track.get_array_for_exec_query
-                    ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare, async: async
+                    ret = ActiveRecord::Base.connection.exec_query sql, name, sql_vals, prepare: prepare
                 else
                     ret = ActiveRecord::Base.connection.execute sql, name
                 end
@@ -567,14 +565,12 @@ module DynamicRecordsMeritfront
                 sql ||= ''
                 sql_vals ||= ''
                 prepare ||= ''
-                async ||= ''
                 Rails.logger.error(%Q{
     DynamicRecords#dynamic_sql debug info.
     name: #{name.to_s}
     sql: #{sql.to_s}
     sql_vals: #{sql_vals.to_s}
     prepare: #{prepare.to_s}
-    async: #{async.to_s}
     })
                 raise e
             end
