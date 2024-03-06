@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    dynamic-records-meritfront (3.1.32)
+    dynamic-records-meritfront (3.1.33)
       hashid-rails
 
 GEM
@@ -32,10 +32,12 @@ GEM
       activerecord (>= 4.0)
       hashids (~> 1.0)
     hashids (1.0.6)
-    i18n (1.14.1)
+    i18n (1.14.3)
       concurrent-ruby (~> 1.0)
+      racc (~> 1.7)
     minitest (5.22.2)
     mutex_m (0.2.0)
+    racc (1.7.3)
     rake (12.3.3)
     timeout (0.4.1)
     tzinfo (2.0.6)
