@@ -595,7 +595,11 @@ module DynamicRecordsMeritfront
         def _dynamic_instaload_handle_with_statements(with_statements)
             %Q{WITH #{
     with_statements.map{|ws|
-        "#{ws[:table_name]} AS (\n#{ws[:sql]}\n)"
+			if(ws[:with])
+				"#{ws[:with]} AS (\n#{ws[:sql]}\n)"
+			else
+        		"#{ws[:table_name]} AS (\n#{ws[:sql]}\n)"
+			end
     }.join(", \n")
 }}
         end
@@ -615,13 +619,13 @@ module DynamicRecordsMeritfront
             #{ other_statements.map{|os| "SELECT row_to_json(#{os[:table_name]}.*) AS row, '#{os[:klass]}' AS _klass FROM (\n#{os[:sql]}\n)) AS #{os[:table_name]}\n" }.join(' UNION ALL ')}
         end
 
-        def instaload(sql, table_name: nil, relied_on: false, dont_return: false, base_name: nil, base_on: nil, attach_on: nil, one_to_one: false, as: nil)
+        def instaload(sql, table_name: nil, relied_on: false, dont_return: false, base_name: nil, base_on: nil, attach_on: nil, one_to_one: false, as: nil, with: nil)
             #this function just makes everything a little easier to deal with by providing defaults, making it nicer to call, and converting potential symbols to strings.
             #At the end of the day it just returns a hash with the settings in it though. So dont overthink it too much.
 
             as = as.to_s if as
             base_name = base_name.to_s if base_name
-            
+
             if table_name
                 table_name = table_name.to_s
             else
@@ -633,7 +637,8 @@ module DynamicRecordsMeritfront
             sql = "\t" + sql.strip
             raise StandardError.new("base_on needs to be nil or a Proc") unless base_on.nil? or base_on.kind_of? Proc
             raise StandardError.new("attach_on needs to be nil or a Proc") unless attach_on.nil? or attach_on.kind_of? Proc
-            return {table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return, base_name: base_name, base_on: base_on, attach_on: attach_on, one_to_one: one_to_one, as: as}
+            return { table_name: table_name, klass: klass, sql: sql, relied_on: relied_on, dont_return: dont_return,
+				base_name: base_name, base_on: base_on, attach_on: attach_on, one_to_one: one_to_one, as: as, with: with }
         end
 
         def instaload_sql(*args) #name, insta_array, opts = { })
@@ -647,7 +652,7 @@ module DynamicRecordsMeritfront
                 raise StandardError.new("bad input to DynamicRecordsMeritfront#instaload_sql method.")
             end
 
-            with_statements = insta_array.select{|a| a[:relied_on]}
+            with_statements = insta_array.select{|a| a[:relied_on] or a[:with]}
             sql = %Q{
 #{ _dynamic_instaload_handle_with_statements(with_statements) if with_statements.any? }
 #{ _dynamic_instaload_union(insta_array)}
