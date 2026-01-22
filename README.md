@@ -5,7 +5,7 @@ Dyanmic Records Meritfront helps extend active record functionality to make it m
 2. communicate with the backend more effectively with sql queries. This becomes especially relevant when you hit the limits of Active Record Relations and the usual way of querying in rails. For instance, if you have dynamic sql queries that are hard to convert properly into ruby.
 3. add other helper methods to work with your database, such as checking if relations exist, or if a migration has been run.
 
-This gem is basically a collection of database tools used on the MidFlip website (renamed from MeritFront). The most useful method IMO would be instaload_sql which is kind of like the preload method, but does multiple preloads at the same time.
+This gem is basically a collection of database tools used on the MidFlip website (renamed from MeritFront). The most useful method IMO would be instaload_sql which is kind of like the preload method, but does multiple preloads at the same time. This gem can be used alongside AR relations, but is still not very railsy, since it basically overrides or ignores them in many cases. I am thinking of adding compatibility though for the instaload_sql method.
 
 ## Basic Examples
 ```ruby
